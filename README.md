@@ -1,4 +1,4 @@
-# DFDS — Frontend Lead Challenge
+# DFDS — FLC
 
 Welcome. You are interviewing as our incoming **Frontend Lead**. After the screening call, this is what you'll prepare ahead of your tech interview — and what we'll spend most of the interview talking about. We'll walk through the code together, ask why you made each call, and explore what you'd do next.
 
