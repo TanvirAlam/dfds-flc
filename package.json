@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
-    "@dfds-ui/navaigator": "^1.0.2",
     "@tanstack/react-router": "1.132.0",
     "@tanstack/react-start": "1.132.0",
     "@tanstack/router-plugin": "1.132.0",
