@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { buttonStyles } from "@/components/ui/Button";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -6,19 +7,28 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <main style={{ maxWidth: 720, margin: "4rem auto", padding: "0 1.5rem", fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>
-      <h1>DFDS Frontend Lead Challenge</h1>
-      <p>
-        This is your starter. The home page is intentionally empty — what you
-        build here is what we&rsquo;ll review.
+    <main className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="text-3xl font-semibold text-slate-900">
+        DFDS Frontend Lead Challenge
+      </h1>
+      <p className="mt-3 text-slate-700">
+        An internal tool for the ops team to view and manage freight bookings.
       </p>
-      <p>
-        See <a href="/api/docs"><code>/api/docs</code></a> for the API
-        (Swagger UI). The OpenAPI spec is at{" "}
-        <a href="/api/openapi.json"><code>/api/openapi.json</code></a>.
-      </p>
-      <p>
-        Read <code>README.md</code> for the brief.
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link to="/bookings" className={buttonStyles("primary")}>
+          Open bookings
+        </Link>
+        <a href="/api/docs" className={buttonStyles("secondary")}>
+          API docs
+        </a>
+      </div>
+
+      <p className="mt-8 text-sm text-slate-500">
+        See <code className="rounded bg-slate-100 px-1">/api/docs</code> for the
+        Swagger UI, or{" "}
+        <code className="rounded bg-slate-100 px-1">/api/openapi.json</code> for
+        the raw spec.
       </p>
     </main>
   );

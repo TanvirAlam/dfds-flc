@@ -1,0 +1,86 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, ApiError } from "@/lib/api/client";
+import type { Booking, Customer, Vessel } from "@/lib/api/types";
+
+export type AsyncStatus = "idle" | "loading" | "success" | "error";
+
+export interface BookingRow extends Booking {
+  customerName: string;
+  vesselName: string;
+}
+
+export interface UseBookingsResult {
+  status: AsyncStatus;
+  rows: BookingRow[];
+  error: Error | null;
+  refetch: () => void;
+}
+
+export function useBookings(): UseBookingsResult {
+  const [status, setStatus] = useState<AsyncStatus>("idle");
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vessels, setVessels] = useState<Vessel[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const refetch = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStatus("loading");
+    setError(null);
+
+    (async () => {
+      try {
+        const [bookingsRes, customersRes, vesselsRes] = await Promise.allSettled([
+          api.listBookings(controller.signal),
+          api.listCustomers(controller.signal),
+          api.listVessels(controller.signal),
+        ]);
+
+        if (controller.signal.aborted) return;
+
+        if (bookingsRes.status === "rejected") {
+          throw bookingsRes.reason instanceof Error
+            ? bookingsRes.reason
+            : new Error(String(bookingsRes.reason));
+        }
+
+        setBookings(bookingsRes.value);
+        setCustomers(
+          customersRes.status === "fulfilled" ? customersRes.value : [],
+        );
+        setVessels(
+          vesselsRes.status === "fulfilled" ? vesselsRes.value : [],
+        );
+        setStatus("success");
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+
+        const normalised =
+          err instanceof ApiError || err instanceof Error
+            ? err
+            : new Error(String(err));
+        setError(normalised);
+        setStatus("error");
+      }
+    })();
+
+    return () => controller.abort();
+  }, [reloadToken]);
+
+  const rows = useMemo<BookingRow[]>(() => {
+    const customersById = new Map(customers.map((c) => [c.id, c]));
+    const vesselsById = new Map(vessels.map((v) => [v.id, v]));
+
+    return bookings.map((b) => ({
+      ...b,
+      customerName: customersById.get(b.customerId)?.name ?? b.customerId,
+      vesselName: vesselsById.get(b.vesselId)?.name ?? b.vesselId,
+    }));
+  }, [bookings, customers, vessels]);
+
+  return { status, rows, error, refetch };
+}
