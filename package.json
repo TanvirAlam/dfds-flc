@@ -1,0 +1,43 @@
+{
+  "name": "frontend-lead-challenge",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "predev": "tsx scripts/setup.ts",
+    "dev": "vite dev --port 3000",
+    "prebuild": "tsx scripts/setup.ts && tsc --noEmit",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "start": "node .output/server/index.mjs"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@dfds-ui/navaigator": "^1.0.2",
+    "@tanstack/react-router": "1.132.0",
+    "@tanstack/react-start": "1.132.0",
+    "@tanstack/router-plugin": "1.132.0",
+    "drizzle-orm": "^0.45.1",
+    "nitro": "3.0.1-alpha.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsx": "^4.19.2",
+    "vite-tsconfig-paths": "^6.0.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "drizzle-kit": "^0.31.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.7.2",
+    "vite": "^7.1.7"
+  }
+}
