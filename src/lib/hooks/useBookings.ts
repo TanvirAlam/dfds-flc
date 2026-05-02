@@ -16,12 +16,7 @@ export interface UseBookingsResult {
   vessels: Vessel[];
   error: Error | null;
   refetch: () => void;
-  /**
-   * Insert or replace a booking in the local cache. Used by the
-   * create/edit flow to reflect a successful server write without a full
-   * refetch. No network IO — caller is responsible for having already
-   * persisted the change.
-   */
+  isRefetching: boolean;
   upsertBooking: (booking: Booking) => void;
 }
 
@@ -31,6 +26,7 @@ export function useBookings(): UseBookingsResult {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const refetch = useCallback(() => setReloadToken((n) => n + 1), []);
@@ -47,7 +43,13 @@ export function useBookings(): UseBookingsResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    setStatus("loading");
+
+    const hasData = bookings.length > 0;
+    if (!hasData) {
+      setStatus("loading");
+    } else {
+      setIsRefetching(true);
+    }
     setError(null);
 
     (async () => {
@@ -83,11 +85,16 @@ export function useBookings(): UseBookingsResult {
             ? err
             : new Error(String(err));
         setError(normalised);
-        setStatus("error");
+        setStatus(hasData ? "success" : "error");
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsRefetching(false);
+        }
       }
     })();
 
     return () => controller.abort();
+
   }, [reloadToken]);
 
   const rows = useMemo<BookingRow[]>(() => {
@@ -108,6 +115,7 @@ export function useBookings(): UseBookingsResult {
     vessels,
     error,
     refetch,
+    isRefetching,
     upsertBooking,
   };
 }

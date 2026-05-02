@@ -24,25 +24,9 @@ import {
   TextInput,
 } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 import { ALL_BOOKING_STATUSES } from "@/lib/filters/bookings";
 import { ApiError } from "@/lib/api/client";
-
-/**
- * Create / edit booking form.
- *
- * Sections follow a deliberate progression — identity first so the user
- * commits to *who* and *what ship*, then logistics (when and where), then
- * cargo (what and how heavy). That order matches how an ops dispatcher
- * naturally frames the job.
- *
- * Validation is pre-flight only; the server is the final authority. The
- * client schema in `src/lib/api/schemas.ts` mirrors the server's. Server
- * 400 responses are parsed back into per-field messages by
- * `extractFieldErrors` below.
- *
- * Submit is pessimistic — the button disables while the request is in
- * flight. See BUGS.md "Pessimistic submit".
- */
 
 type Mode = "create" | "edit";
 
@@ -52,10 +36,8 @@ export interface BookingFormValues {
   origin: string;
   destination: string;
   cargoType: string;
-  /** String so the input can hold "" while the user types; coerced on submit. */
   weightKg: string;
   status: Booking["status"];
-  /** `<input type="datetime-local">` wall-clock string, e.g. "2026-05-10T14:30". */
   departureAt: string;
   arrivalAt: string;
 }
@@ -74,18 +56,11 @@ const EMPTY_VALUES: BookingFormValues = {
 
 export interface BookingFormProps {
   mode: Mode;
-  /** Present when editing; absent when creating. */
   initial?: Booking;
   customers: Customer[];
   vessels: Vessel[];
-  /**
-   * Persist the booking. Discriminated so the parent can route each mode
-   * to the right API call without casts. Resolves with the persisted
-   * record; rejects on network / validation failure.
-   */
   onSubmit: (submission: Submission) => Promise<Booking>;
   onCancel: () => void;
-  /** Called whenever dirty-state flips, so parents can gate dismiss. */
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -376,8 +351,6 @@ export function BookingForm({
         </p>
       ) : null}
 
-      {/* Screen-reader hint summarising which sections have errors. Keeps
-          the visible form uncluttered; AT users still get a heads-up. */}
       <p className="sr-only" aria-live="polite">
         {[
           hasIdentityError && "Identity has errors",
@@ -396,12 +369,18 @@ export function BookingForm({
           type="submit"
           variant="primary"
           disabled={submitting || (mode === "edit" && !dirty)}
+          aria-busy={submitting}
         >
-          {submitting
-            ? "Saving…"
-            : mode === "create"
-              ? "Create booking"
-              : "Save changes"}
+          {submitting ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner size={14} />
+              Saving…
+            </span>
+          ) : mode === "create" ? (
+            "Create booking"
+          ) : (
+            "Save changes"
+          )}
         </Button>
       </div>
     </form>

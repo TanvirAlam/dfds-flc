@@ -1,28 +1,65 @@
 import { Button } from "@/components/ui/Button";
 
+const SKELETON_ROWS = 8;
+
 export function BookingsLoading() {
   return (
     <div
       role="status"
       aria-busy="true"
       aria-live="polite"
-      className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+      className="relative max-h-[calc(100vh-18rem)] min-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm"
     >
-      <div className="border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Loading bookings…
-      </div>
-      <ul className="divide-y divide-slate-100">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <li key={i} className="flex items-center gap-3 px-3 py-3">
-            <SkeletonBar className="w-24" />
-            <SkeletonBar className="w-48" />
-            <SkeletonBar className="w-28" />
-            <SkeletonBar className="ml-auto w-20" />
-            <SkeletonBar className="w-24" />
-          </li>
-        ))}
-      </ul>
-      <span className="sr-only">Loading</span>
+      <table className="min-w-full border-collapse text-sm">
+        <caption className="sr-only">Loading freight bookings</caption>
+        <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_theme(colors.slate.200)]">
+          <tr>
+            <Th className="w-32">Ref</Th>
+            <Th className="w-56">Customer</Th>
+            <Th className="w-40">Vessel</Th>
+            <Th className="min-w-64">Route</Th>
+            <Th className="w-40">Cargo</Th>
+            <Th className="w-28 text-right">Weight</Th>
+            <Th className="w-32">Status</Th>
+            <Th className="w-44">ETD</Th>
+            <Th className="w-44">ETA</Th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+            <tr key={i} className="h-12">
+              <Cell>
+                <SkeletonBar className="w-16" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-40" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-28" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-48" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-24" />
+              </Cell>
+              <Cell className="text-right">
+                <SkeletonBar className="ml-auto w-16" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-20 rounded-full" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-28" />
+              </Cell>
+              <Cell>
+                <SkeletonBar className="w-28" />
+              </Cell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <span className="sr-only">Loading bookings</span>
     </div>
   );
 }
@@ -73,11 +110,37 @@ export function BookingsError({
   );
 }
 
+function Th({
+  className = "",
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <th scope="col" className={`px-3 py-2.5 align-middle ${className}`}>
+      {children}
+    </th>
+  );
+}
+
+function Cell({
+  className = "",
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <td className={`px-3 py-2.5 align-middle ${className}`}>{children}</td>
+  );
+}
+
 function SkeletonBar({ className = "" }: { className?: string }) {
   return (
     <span
       aria-hidden
-      className={`inline-block h-3 animate-pulse rounded bg-slate-200 ${className}`}
+      className={`inline-block h-3 rounded bg-slate-200 motion-safe:animate-pulse ${className}`}
     />
   );
 }

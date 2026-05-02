@@ -26,18 +26,6 @@ import {
   type BookingsSearchParams,
 } from "@/lib/filters/bookings";
 
-/**
- * URL is the source of truth for filter state *and* drawer state.
- *
- * `?edit=new` → create drawer.
- * `?edit=bkg_05` → edit drawer for that booking.
- * (any other value / absent) → no drawer.
- *
- * Consequences:
- *   - Share a link with `?edit=bkg_05` and it opens on that row.
- *   - Browser Back closes the drawer (doesn't navigate away).
- *   - Reload-safe.
- */
 interface BookingsSearch extends BookingsSearchParams {
   edit?: string;
 }
@@ -57,20 +45,25 @@ export const Route = createFileRoute("/bookings")({
 function BookingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { status, rows, customers, vessels, error, refetch, upsertBooking } =
-    useBookings();
+  const {
+    status,
+    rows,
+    customers,
+    vessels,
+    error,
+    refetch,
+    isRefetching,
+    upsertBooking,
+  } = useBookings();
 
   const filters: BookingFilters = useMemo(() => parseSearch(search), [search]);
 
   function setFilters(next: BookingFilters) {
-    // Keep `edit` sticky across filter changes so typing doesn't close the drawer.
     navigate({
       search: { ...filtersToSearch(next), edit: search.edit },
       replace: true,
     });
   }
-
-  /* ---------------- drawer state derived from URL ---------------- */
 
   const drawerMode: "create" | "edit" | null = search.edit
     ? search.edit === "new"
@@ -103,16 +96,12 @@ function BookingsPage() {
     [upsertBooking],
   );
 
-  /* ---------------- row activation = open edit drawer ------------- */
-
   const handleRowActivate = useCallback(
     (row: BookingRow) => {
       openDrawer(row.id);
     },
     [openDrawer],
   );
-
-  /* ---------------- filtered rows + chip labels ------------------- */
 
   const filteredRows = useMemo(
     () => rows.filter((r) => matchesFilters(r, filters)),
@@ -140,6 +129,7 @@ function BookingsPage() {
         status={status}
         total={rows.length}
         filtered={filteredRows.length}
+        isRefetching={isRefetching}
         onRefresh={refetch}
         onNewBooking={() => openDrawer("new")}
       />

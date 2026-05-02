@@ -1,16 +1,19 @@
 import type { AsyncStatus } from "@/lib/hooks/useBookings";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function BookingsHeader({
   status,
   total,
   filtered,
+  isRefetching,
   onRefresh,
   onNewBooking,
 }: {
   status: AsyncStatus;
   total: number;
   filtered: number;
+  isRefetching: boolean;
   onRefresh: () => void;
   onNewBooking: () => void;
 }) {
@@ -25,6 +28,17 @@ export function BookingsHeader({
         </p>
       </div>
       <div className="flex items-center gap-3 text-sm text-slate-600">
+        {isRefetching ? (
+          <span
+            role="status"
+            aria-live="polite"
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200"
+          >
+            <Spinner size={12} />
+            <span>Refreshing</span>
+          </span>
+        ) : null}
+
         {status === "success" ? (
           <span aria-live="polite" className="tabular-nums">
             {isFiltered
@@ -36,7 +50,7 @@ export function BookingsHeader({
           variant="secondary"
           size="sm"
           onClick={onRefresh}
-          disabled={status === "loading"}
+          disabled={status === "loading" || isRefetching}
         >
           Refresh
         </Button>
