@@ -1,5 +1,89 @@
 @import "tailwindcss";
-/* @import "@dfds-ui/navaigator/styles.css"; */
+/* NavAIgator stylesheet intentionally not imported; the package fails to
+   install without GitHub Packages auth. See BUGS.md. */
+
+/*
+ * Status design tokens.
+ *
+ * One place to retheme booking-status visuals. Consumers (StatusBadge,
+ * FilterChips, etc.) reference the CSS custom properties, never a raw
+ * colour. When NavAIgator is installable and exposes its own semantic
+ * tokens, these definitions can be replaced with `var(--dfds-…)` one-liners
+ * without touching any component.
+ *
+ * Contrast is calculated against each token's own `--status-*-bg` so each
+ * variant hits WCAG AA (≥ 4.5:1) for the badge label. Numbers below each
+ * pair are the measured ratio on a white page surface.
+ *
+ *   pending    #78350f on #fffbeb  →  8.75:1
+ *   confirmed  #0c4a6e on #f0f9ff  →  8.87:1
+ *   in_transit #312e81 on #eef2ff  → 10.22:1
+ *   delivered  #064e3b on #ecfdf5  →  9.23:1
+ *   cancelled  #881337 on #fff1f2  →  8.71:1
+ *
+ * Dark-surface values swap background/foreground roles and are clamped to
+ * keep ≥ 4.5:1 on slate-900.
+ */
+:root {
+  --status-pending-bg: #fffbeb;
+  --status-pending-fg: #78350f;
+  --status-pending-ring: #fde68a;
+  --status-pending-accent: #f59e0b;
+
+  --status-confirmed-bg: #f0f9ff;
+  --status-confirmed-fg: #0c4a6e;
+  --status-confirmed-ring: #bae6fd;
+  --status-confirmed-accent: #0ea5e9;
+
+  --status-in-transit-bg: #eef2ff;
+  --status-in-transit-fg: #312e81;
+  --status-in-transit-ring: #c7d2fe;
+  --status-in-transit-accent: #6366f1;
+
+  --status-delivered-bg: #ecfdf5;
+  --status-delivered-fg: #064e3b;
+  --status-delivered-ring: #a7f3d0;
+  --status-delivered-accent: #10b981;
+
+  --status-cancelled-bg: #fff1f2;
+  --status-cancelled-fg: #881337;
+  --status-cancelled-ring: #fecdd3;
+  --status-cancelled-accent: #f43f5e;
+}
+
+/*
+ * Dark surface variants. Trigger with `class="dark"` on a wrapping element
+ * — we don't currently have a theme toggle, but the tokens are ready so
+ * the same components survive a future dark mode without edits.
+ *
+ * Measured ratios (badge fg on badge bg):
+ *   pending    #fde68a on #451a03  → 12.03:1
+ *   confirmed  #bae6fd on #082f49  → 10.46:1
+ *   in_transit #c7d2fe on #1e1b4b  → 10.72:1
+ *   delivered  #a7f3d0 on #064e3b  →  7.58:1
+ *   cancelled  #fecdd3 on #4c0519  → 11.08:1
+ */
+.dark {
+  --status-pending-bg: #451a03;
+  --status-pending-fg: #fde68a;
+  --status-pending-ring: #92400e;
+
+  --status-confirmed-bg: #082f49;
+  --status-confirmed-fg: #bae6fd;
+  --status-confirmed-ring: #075985;
+
+  --status-in-transit-bg: #1e1b4b;
+  --status-in-transit-fg: #c7d2fe;
+  --status-in-transit-ring: #3730a3;
+
+  --status-delivered-bg: #064e3b;
+  --status-delivered-fg: #a7f3d0;
+  --status-delivered-ring: #047857;
+
+  --status-cancelled-bg: #4c0519;
+  --status-cancelled-fg: #fecdd3;
+  --status-cancelled-ring: #9f1239;
+}
 
 body {
   margin: 0;

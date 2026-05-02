@@ -23,7 +23,27 @@ specific observations — this file tracks them as I hit them.
   the presentational primitives (`StatusBadge`, `BookingsTable` cells) are
   isolated.
 
-### 2. `styles.css` imports `@dfds-ui/navaigator/styles.css` commented out
+### 2. No usable DFDS/NavAIgator design tokens because the library won't install
+- **Area:** theming
+- **Expected:** a NavAIgator-shipped token like `--dfds-status-pending-bg`
+  (or equivalent) to pull into our status badges so the app reads as DFDS
+  at a glance.
+- **Actual:** library isn't available (bug 1), so there is nothing to
+  reference.
+- **Workaround in this repo:** `src/styles.css` defines a small
+  `--status-*-bg/fg/ring` token set with verified WCAG AA contrast (see
+  the contrast table in that file). Components consume the tokens via
+  CSS custom properties, never via raw hex or Tailwind colour utilities.
+  When NavAIgator is installable, replacing those definitions with
+  `var(--dfds-…)` is a one-file change and every consumer picks it up
+  automatically. The same `--status-*` names already have dark-surface
+  values set under `.dark`, so dark mode is a theming decision, not a
+  component one.
+- **Impact:** satisfies the "styles come from design tokens, not
+  hard-coded hex values" acceptance criterion even without NavAIgator —
+  the tokens are ours, but the seam is in the right place.
+
+### 3. `styles.css` imports `@dfds-ui/navaigator/styles.css` commented out
 - **Area:** repo hygiene
 - **Expected:** the starter either imports the stylesheet or doesn't mention
   it — not leaves a commented-out import as a silent landmine.

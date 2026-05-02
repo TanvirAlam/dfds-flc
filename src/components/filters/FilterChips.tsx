@@ -1,7 +1,18 @@
 import type { BookingStatus } from "@/lib/api/types";
 import type { BookingFilters } from "@/lib/filters/bookings";
 import { isEmpty } from "@/lib/filters/bookings";
+import { StatusBadge } from "@/components/bookings/StatusBadge";
 
+/**
+ * Chips summarise active filters. Status chips render the actual
+ * `StatusBadge` so the visual language is consistent with the table and
+ * status filter controls — one source of truth for "what does 'pending'
+ * look like".
+ *
+ * A stable `min-h-9` reserves space so toggling chips doesn't shove the
+ * table up and down (layout-shift acceptance criterion from the filters
+ * ticket, kept here for safety).
+ */
 export function FilterChips({
   filters,
   customerLabel,
@@ -33,9 +44,9 @@ export function FilterChips({
       ) : (
         <>
           {filters.statuses.map((s) => (
-            <Chip
+            <StatusChip
               key={`status-${s}`}
-              label={`Status: ${humaniseStatus(s)}`}
+              status={s}
               onRemove={() => onRemoveStatus(s)}
             />
           ))}
@@ -70,6 +81,29 @@ export function FilterChips({
   );
 }
 
+/** Status chip = the canonical `StatusBadge` + a remove button beside it. */
+function StatusChip({
+  status,
+  onRemove,
+}: {
+  status: BookingStatus;
+  onRemove: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <StatusBadge status={status} />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove status filter ${status}`}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-500 outline-none transition hover:bg-slate-200 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-sky-500"
+      >
+        <span aria-hidden>×</span>
+      </button>
+    </span>
+  );
+}
+
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-medium text-slate-800 ring-1 ring-inset ring-slate-200">
@@ -86,13 +120,4 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
       </button>
     </span>
   );
-}
-
-function humaniseStatus(s: BookingStatus): string {
-  switch (s) {
-    case "in_transit":
-      return "In transit";
-    default:
-      return s.charAt(0).toUpperCase() + s.slice(1);
-  }
 }
