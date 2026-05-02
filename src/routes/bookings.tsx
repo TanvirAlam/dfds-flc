@@ -1,5 +1,19 @@
 import { useCallback, useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import type { Booking, BookingRow } from "@/domain/bookings/types";
+import {
+  EMPTY_FILTERS,
+  matchesFilters,
+  removeStatus,
+  setCustomer,
+  setSearch,
+  setVessel,
+} from "@/domain/bookings/filters";
+import { useBookings } from "@/lib/hooks/useBookings";
+import {
+  useBookingsUrlState,
+  validateBookingsSearch,
+} from "@/lib/hooks/useBookingsUrlState";
 import { BookingsTable } from "@/components/bookings/BookingsTable";
 import { BookingsHeader } from "@/components/bookings/BookingsHeader";
 import {
@@ -8,43 +22,28 @@ import {
   BookingsLoading,
 } from "@/components/bookings/BookingsStates";
 import { BookingDrawer } from "@/components/bookings/BookingDrawer";
+import { FilteredEmpty } from "@/components/bookings/FilteredEmpty";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterChips } from "@/components/filters/FilterChips";
-import type { BookingRow } from "@/lib/hooks/useBookings";
-import type { Booking } from "@/lib/api/types";
-import { useBookings } from "@/lib/hooks/useBookings";
-import {
-  EMPTY_FILTERS,
-  filtersToSearch,
-  matchesFilters,
-  parseSearch,
-  removeStatus,
-  setCustomer,
-  setSearch,
-  setVessel,
-  type BookingFilters,
-  type BookingsSearchParams,
-} from "@/lib/filters/bookings";
 
-interface BookingsSearch extends BookingsSearchParams {
-  edit?: string;
-}
+/**
+ * Bookings page.
+ *
+ * Orchestrates three concerns, each delegated to a dedicated module:
+ *   - URL state (filters + drawer open-id)  → `useBookingsUrlState`
+ *   - Server data (list + lookups + upsert) → `useBookings`
+ *   - Domain filtering                       → `matchesFilters`
+ *
+ * This component's job is to connect those outputs to their views.
+ */
 
 export const Route = createFileRoute("/bookings")({
-  validateSearch: (search: Record<string, unknown>): BookingsSearch => ({
-    status: typeof search.status === "string" ? search.status : undefined,
-    customerId:
-      typeof search.customerId === "string" ? search.customerId : undefined,
-    vesselId: typeof search.vesselId === "string" ? search.vesselId : undefined,
-    q: typeof search.q === "string" ? search.q : undefined,
-    edit: typeof search.edit === "string" ? search.edit : undefined,
-  }),
+  validateSearch: validateBookingsSearch,
   component: BookingsPage,
 });
 
 function BookingsPage() {
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
   const {
     status,
     rows,
@@ -56,51 +55,23 @@ function BookingsPage() {
     upsertBooking,
   } = useBookings();
 
-  const filters: BookingFilters = useMemo(() => parseSearch(search), [search]);
+  const {
+    filters,
+    drawerMode,
+    drawerTarget,
+    setFilters,
+    openDrawer,
+    closeDrawer,
+  } = useBookingsUrlState(search);
 
-  function setFilters(next: BookingFilters) {
-    navigate({
-      search: { ...filtersToSearch(next), edit: search.edit },
-      replace: true,
-    });
-  }
+  /* --------- derived data --------- */
 
-  const drawerMode: "create" | "edit" | null = search.edit
-    ? search.edit === "new"
-      ? "create"
-      : "edit"
-    : null;
-
-  const editingBooking = useMemo(() => {
-    if (drawerMode !== "edit") return undefined;
-    return rows.find((r) => r.id === search.edit);
-  }, [drawerMode, rows, search.edit]);
-
-  const openDrawer = useCallback(
-    (target: "new" | string) => {
-      navigate({ search: { ...search, edit: target } });
-    },
-    [navigate, search],
-  );
-
-  const closeDrawer = useCallback(() => {
-    // Strip `edit` from the URL; keep filters.
-    const { edit: _drop, ...rest } = search;
-    navigate({ search: rest, replace: false });
-  }, [navigate, search]);
-
-  const handlePersisted = useCallback(
-    (persisted: Booking) => {
-      upsertBooking(persisted);
-    },
-    [upsertBooking],
-  );
-
-  const handleRowActivate = useCallback(
-    (row: BookingRow) => {
-      openDrawer(row.id);
-    },
-    [openDrawer],
+  const editingBooking = useMemo(
+    () =>
+      drawerMode === "edit" && drawerTarget
+        ? rows.find((r) => r.id === drawerTarget)
+        : undefined,
+    [drawerMode, drawerTarget, rows],
   );
 
   const filteredRows = useMemo(
@@ -123,6 +94,44 @@ function BookingsPage() {
     [filters.vesselId, vessels],
   );
 
+  /* --------- stable handlers --------- */
+
+  const handleRowActivate = useCallback(
+    (row: BookingRow) => openDrawer(row.id),
+    [openDrawer],
+  );
+  const handlePersisted = useCallback(
+    (persisted: Booking) => upsertBooking(persisted),
+    [upsertBooking],
+  );
+  const handleNewBooking = useCallback(() => openDrawer("new"), [openDrawer]);
+  const clearAll = useCallback(
+    () => setFilters(EMPTY_FILTERS),
+    [setFilters],
+  );
+
+  // Chip removal handlers: declared once with stable identities so the
+  // `FilterChips` component can be memoised in a follow-up.
+  const onRemoveStatus = useCallback(
+    (s: Parameters<typeof removeStatus>[1]) =>
+      setFilters(removeStatus(filters, s)),
+    [filters, setFilters],
+  );
+  const onClearCustomer = useCallback(
+    () => setFilters(setCustomer(filters, null)),
+    [filters, setFilters],
+  );
+  const onClearVessel = useCallback(
+    () => setFilters(setVessel(filters, null)),
+    [filters, setFilters],
+  );
+  const onClearSearch = useCallback(
+    () => setFilters(setSearch(filters, "")),
+    [filters, setFilters],
+  );
+
+  /* --------- render --------- */
+
   return (
     <main className="mx-auto max-w-[1200px] px-6 py-8">
       <BookingsHeader
@@ -131,7 +140,7 @@ function BookingsPage() {
         filtered={filteredRows.length}
         isRefetching={isRefetching}
         onRefresh={refetch}
-        onNewBooking={() => openDrawer("new")}
+        onNewBooking={handleNewBooking}
       />
 
       {status === "success" ? (
@@ -147,11 +156,11 @@ function BookingsPage() {
               filters={filters}
               customerLabel={customerLabel}
               vesselLabel={vesselLabel}
-              onRemoveStatus={(s) => setFilters(removeStatus(filters, s))}
-              onClearCustomer={() => setFilters(setCustomer(filters, null))}
-              onClearVessel={() => setFilters(setVessel(filters, null))}
-              onClearSearch={() => setFilters(setSearch(filters, ""))}
-              onClearAll={() => setFilters(EMPTY_FILTERS)}
+              onRemoveStatus={onRemoveStatus}
+              onClearCustomer={onClearCustomer}
+              onClearVessel={onClearVessel}
+              onClearSearch={onClearSearch}
+              onClearAll={clearAll}
             />
           </div>
         </>
@@ -167,7 +176,7 @@ function BookingsPage() {
         rows.length === 0 ? (
           <BookingsEmpty />
         ) : filteredRows.length === 0 ? (
-          <FilteredEmpty onClear={() => setFilters(EMPTY_FILTERS)} />
+          <FilteredEmpty onClear={clearAll} />
         ) : (
           <BookingsTable
             rows={filteredRows}
@@ -186,29 +195,5 @@ function BookingsPage() {
         onPersisted={handlePersisted}
       />
     </main>
-  );
-}
-
-function FilteredEmpty({ onClear }: { onClear: () => void }) {
-  return (
-    <div
-      role="status"
-      className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center"
-    >
-      <h2 className="text-base font-semibold text-slate-900">
-        No bookings match these filters
-      </h2>
-      <p className="mt-1 text-sm text-slate-600">
-        Try widening the search or{" "}
-        <button
-          type="button"
-          onClick={onClear}
-          className="rounded text-sky-700 underline underline-offset-2 outline-none hover:text-sky-900 focus-visible:ring-2 focus-visible:ring-sky-500"
-        >
-          clear all filters
-        </button>
-        .
-      </p>
-    </div>
   );
 }

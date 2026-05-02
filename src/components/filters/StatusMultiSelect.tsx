@@ -1,5 +1,5 @@
-import type { BookingStatus } from "@/lib/api/types";
-import { ALL_BOOKING_STATUSES } from "@/lib/filters/bookings";
+import type { BookingStatus } from "@/domain/bookings/types";
+import { ALL_BOOKING_STATUSES } from "@/domain/bookings/status";
 import { StatusBadge } from "@/components/bookings/StatusBadge";
 
 export function StatusMultiSelect({

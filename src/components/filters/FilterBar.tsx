@@ -1,11 +1,11 @@
-import type { Customer, Vessel } from "@/lib/api/types";
-import type { BookingFilters } from "@/lib/filters/bookings";
+import type { Customer, Vessel } from "@/domain/bookings/types";
 import {
   setCustomer,
   setSearch,
   setVessel,
   toggleStatus,
-} from "@/lib/filters/bookings";
+  type BookingFilters,
+} from "@/domain/bookings/filters";
 import { Select } from "./Select";
 import { SearchInput } from "./SearchInput";
 import { StatusMultiSelect } from "./StatusMultiSelect";

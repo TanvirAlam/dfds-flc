@@ -1,4 +1,4 @@
-import { ApiError, type ApiErrorKind } from "@/lib/api/client";
+import { ApiError, type ApiErrorKind } from "@/services/api";
 import { reportError, toUserFacingMessage } from "@/lib/errors";
 
 function makeApiError(kind: ApiErrorKind, status: number | null = null) {

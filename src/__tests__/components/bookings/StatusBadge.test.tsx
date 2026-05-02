@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import type { BookingStatus } from "@/lib/api/types";
+import type { BookingStatus } from "@/domain/bookings/types";
 import { StatusBadge } from "@/components/bookings/StatusBadge";
 
 const CASES: Array<[BookingStatus, string]> = [

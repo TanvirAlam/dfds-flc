@@ -1,6 +1,5 @@
-import type { BookingStatus } from "@/lib/api/types";
-import type { BookingFilters } from "@/lib/filters/bookings";
-import { isEmpty } from "@/lib/filters/bookings";
+import type { BookingStatus } from "@/domain/bookings/types";
+import { isEmpty, type BookingFilters } from "@/domain/bookings/filters";
 import { StatusBadge } from "@/components/bookings/StatusBadge";
 
 export function FilterChips({
