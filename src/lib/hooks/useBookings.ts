@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api/client";
 import type { Booking, Customer, Vessel } from "@/lib/api/types";
+import { reportError } from "@/lib/errors";
 
 export type AsyncStatus = "idle" | "loading" | "success" | "error";
 
@@ -80,11 +81,16 @@ export function useBookings(): UseBookingsResult {
         if (controller.signal.aborted) return;
         if (err instanceof DOMException && err.name === "AbortError") return;
 
+        reportError("useBookings.fetch", err);
+
         const normalised =
           err instanceof ApiError || err instanceof Error
             ? err
             : new Error(String(err));
         setError(normalised);
+        // If we have stale data, keep showing it; surface the error as a
+        // banner at the page level. Otherwise fall through to an error
+        // screen.
         setStatus(hasData ? "success" : "error");
       } finally {
         if (!controller.signal.aborted) {

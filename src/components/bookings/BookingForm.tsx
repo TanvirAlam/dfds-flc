@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { ALL_BOOKING_STATUSES } from "@/lib/filters/bookings";
 import { ApiError } from "@/lib/api/client";
+import { reportError, toUserFacingMessage } from "@/lib/errors";
+import { useToast } from "@/components/ui/Toast";
 
 type Mode = "create" | "edit";
 
@@ -78,6 +80,7 @@ export function BookingForm({
   onDirtyChange,
 }: BookingFormProps) {
   const formId = useId();
+  const { toast } = useToast();
 
   const defaults = useMemo<BookingFormValues>(
     () => (initial ? toFormValues(initial) : EMPTY_VALUES),
@@ -132,15 +135,19 @@ export function BookingForm({
     try {
       await onSubmit(built.submission);
     } catch (err) {
+      // Always log — we never want a caught error to vanish silently.
+      reportError(`BookingForm.${mode}`, err);
+
+      // 400 with field issues → surface inline on the offending fields.
+      // Everything else (network / 5xx / surprises) → a toast with a
+      // friendly message. Raw `err.message` never reaches the DOM.
       const fieldErrors = extractFieldErrors(err);
-      setErrors(
-        fieldErrors ?? {
-          _root:
-            err instanceof Error
-              ? err.message
-              : "Something went wrong. Try again.",
-        },
-      );
+      if (fieldErrors) {
+        setErrors(fieldErrors);
+      } else {
+        const ui = toUserFacingMessage(err);
+        toast({ variant: "error", title: ui.title, body: ui.body });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -342,6 +349,12 @@ export function BookingForm({
         </div>
       </Section>
 
+      {/*
+        `_root` only shows up for client-side Zod issues that aren't
+        attached to a specific field (cross-field refinements, form-shape
+        problems). Server-side non-field errors are surfaced as toasts in
+        `handleSubmit` — raw `err.message` never reaches the DOM.
+      */}
       {errors._root ? (
         <p
           role="alert"

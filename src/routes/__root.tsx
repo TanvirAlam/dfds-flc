@@ -1,6 +1,12 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -12,12 +18,18 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootDocument,
-  // Wrap every page in the toast provider so any screen can push a toast
-  // without re-wiring the tree. Kept tiny (see `src/components/ui/Toast.tsx`).
+  /*
+   * ErrorBoundary wraps ToastProvider *and* the route tree. If a provider
+   * itself blows up, the boundary still renders a fallback UI instead of
+   * a blank page. The boundary doesn't depend on the toast system so
+   * this ordering is safe.
+   */
   component: () => (
-    <ToastProvider>
-      <Outlet />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Outlet />
+      </ToastProvider>
+    </ErrorBoundary>
   ),
 });
 

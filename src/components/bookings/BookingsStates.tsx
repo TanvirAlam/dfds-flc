@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { toUserFacingMessage } from "@/lib/errors";
 
 const SKELETON_ROWS = 8;
 
@@ -84,9 +85,14 @@ export function BookingsError({
   error,
   onRetry,
 }: {
-  error: Error;
+  error: unknown;
   onRetry: () => void;
 }) {
+  // Classify once; never render `error.message` directly. Exposing raw
+  // server strings to an ops user is a surprise waiting to happen, and
+  // leaks details that belong in the console (see `reportError`).
+  const ui = toUserFacingMessage(error);
+
   return (
     <div
       role="alert"
@@ -94,17 +100,19 @@ export function BookingsError({
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-semibold">Could not load bookings.</p>
-          <p className="mt-1 text-rose-800/90">{error.message}</p>
+          <p className="font-semibold">{ui.title}</p>
+          <p className="mt-1 text-rose-800/90">{ui.body}</p>
         </div>
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={onRetry}
-          className="shrink-0"
-        >
-          Retry
-        </Button>
+        {ui.canRetry ? (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={onRetry}
+            className="shrink-0"
+          >
+            Retry
+          </Button>
+        ) : null}
       </div>
     </div>
   );
