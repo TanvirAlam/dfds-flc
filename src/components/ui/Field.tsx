@@ -6,6 +6,7 @@ export function Field({
   error,
   hint,
   required,
+  optional,
   children,
   className = "",
 }: {
@@ -14,38 +15,43 @@ export function Field({
   error?: string;
   hint?: ReactNode;
   required?: boolean;
+  optional?: boolean;
   children: ReactNode;
   className?: string;
 }) {
-  const hintId = useId();
-  const errId = useId();
+  const messageId = useId();
+  const showMessage = Boolean(error) || Boolean(hint);
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <label
-        htmlFor={htmlFor}
-        className="text-xs font-medium uppercase tracking-wide text-slate-700"
-      >
-        {label}
-        {required ? (
-          <span aria-hidden className="ml-0.5 text-rose-600">
-            *
+      <div className="flex items-baseline justify-between gap-2">
+        <label
+          htmlFor={htmlFor}
+          className="text-xs font-medium uppercase tracking-wide text-slate-700"
+        >
+          {label}
+          {required ? (
+            <span aria-hidden className="ml-0.5 text-rose-600">
+              *
+            </span>
+          ) : null}
+        </label>
+        {optional ? (
+          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+            Optional
           </span>
         ) : null}
-      </label>
+      </div>
       {children}
-      {hint && !error ? (
-        <p id={hintId} className="text-xs text-slate-500">
-          {hint}
+      {showMessage ? (
+        <p
+          id={messageId}
+          role={error ? "alert" : undefined}
+          className={`text-xs ${error ? "text-rose-700" : "text-slate-500"}`}
+        >
+          {error ?? hint}
         </p>
       ) : null}
-      <p
-        id={errId}
-        role="alert"
-        className={`min-h-[1.25rem] text-xs ${error ? "text-rose-700" : "text-transparent"}`}
-      >
-        {error ?? "​"}
-      </p>
     </div>
   );
 }

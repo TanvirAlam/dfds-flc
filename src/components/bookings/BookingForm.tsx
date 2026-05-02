@@ -5,17 +5,20 @@ import {
   useMemo,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
+import { z } from "zod";
 import type { Booking, Customer, Vessel } from "@/lib/api/types";
 import {
   createBookingSchema,
   patchBookingSchema,
   type CreateBookingInput,
+  type PatchBookingInput,
   zodErrorToFieldMap,
 } from "@/lib/api/schemas";
 import {
-  Field,
   DateTimeInput,
+  Field,
   NumberInput,
   SelectInput,
   TextInput,
@@ -23,7 +26,23 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ALL_BOOKING_STATUSES } from "@/lib/filters/bookings";
 import { ApiError } from "@/lib/api/client";
-import { z } from "zod";
+
+/**
+ * Create / edit booking form.
+ *
+ * Sections follow a deliberate progression — identity first so the user
+ * commits to *who* and *what ship*, then logistics (when and where), then
+ * cargo (what and how heavy). That order matches how an ops dispatcher
+ * naturally frames the job.
+ *
+ * Validation is pre-flight only; the server is the final authority. The
+ * client schema in `src/lib/api/schemas.ts` mirrors the server's. Server
+ * 400 responses are parsed back into per-field messages by
+ * `extractFieldErrors` below.
+ *
+ * Submit is pessimistic — the button disables while the request is in
+ * flight. See BUGS.md "Pessimistic submit".
+ */
 
 type Mode = "create" | "edit";
 
@@ -33,8 +52,10 @@ export interface BookingFormValues {
   origin: string;
   destination: string;
   cargoType: string;
+  /** String so the input can hold "" while the user types; coerced on submit. */
   weightKg: string;
   status: Booking["status"];
+  /** `<input type="datetime-local">` wall-clock string, e.g. "2026-05-10T14:30". */
   departureAt: string;
   arrivalAt: string;
 }
@@ -51,6 +72,27 @@ const EMPTY_VALUES: BookingFormValues = {
   arrivalAt: "",
 };
 
+export interface BookingFormProps {
+  mode: Mode;
+  /** Present when editing; absent when creating. */
+  initial?: Booking;
+  customers: Customer[];
+  vessels: Vessel[];
+  /**
+   * Persist the booking. Discriminated so the parent can route each mode
+   * to the right API call without casts. Resolves with the persisted
+   * record; rejects on network / validation failure.
+   */
+  onSubmit: (submission: Submission) => Promise<Booking>;
+  onCancel: () => void;
+  /** Called whenever dirty-state flips, so parents can gate dismiss. */
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+export type Submission =
+  | { mode: "create"; payload: CreateBookingInput }
+  | { mode: "edit"; payload: PatchBookingInput };
+
 export function BookingForm({
   mode,
   initial,
@@ -58,14 +100,8 @@ export function BookingForm({
   vessels,
   onSubmit,
   onCancel,
-}: {
-  mode: Mode;
-  initial?: Booking;
-  customers: Customer[];
-  vessels: Vessel[];
-  onSubmit: (payload: CreateBookingInput, mode: Mode) => Promise<Booking>;
-  onCancel: () => void;
-}) {
+  onDirtyChange,
+}: BookingFormProps) {
   const formId = useId();
 
   const defaults = useMemo<BookingFormValues>(
@@ -77,21 +113,26 @@ export function BookingForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const [lockedAt, setLockedAt] = useState<number | null>(null);
-
   useEffect(() => {
     setValues(defaults);
     setErrors({});
   }, [defaults]);
 
   const dirty = useMemo(
-    () => !shallowEqualValues(values, defaults),
+    () => !valuesEqual(values, defaults),
     [values, defaults],
   );
 
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const setField = useCallback(
-    <K extends keyof BookingFormValues>(key: K, v: BookingFormValues[K]) => {
-      setValues((prev) => ({ ...prev, [key]: v }));
+    <K extends keyof BookingFormValues>(
+      key: K,
+      value: BookingFormValues[K],
+    ) => {
+      setValues((prev) => ({ ...prev, [key]: value }));
       setErrors((prev) => {
         if (!prev[key as string]) return prev;
         const { [key as string]: _drop, ...rest } = prev;
@@ -103,218 +144,228 @@ export function BookingForm({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submitting) return;
 
-    const now = Date.now();
-    if (submitting || (lockedAt && now - lockedAt < 500)) return;
-    setLockedAt(now);
-
-    const schema = mode === "create" ? createBookingSchema : patchBookingSchema;
-    const coerced = coerceForSchema(values);
-
-    const parsed = schema.safeParse(coerced);
-    if (!parsed.success) {
-      setErrors(zodErrorToFieldMap(parsed.error));
+    const built = buildSubmission(mode, defaults, values);
+    if (!built.ok) {
+      setErrors(built.errors);
       return;
     }
 
     setSubmitting(true);
     setErrors({});
     try {
-      const payload =
-        mode === "create"
-          ? (parsed.data as CreateBookingInput)
-          : (diff(defaults, values) as CreateBookingInput);
-
-      await onSubmit(payload, mode);
+      await onSubmit(built.submission);
     } catch (err) {
       const fieldErrors = extractFieldErrors(err);
-      if (fieldErrors) {
-        setErrors(fieldErrors);
-      } else {
-        setErrors({
+      setErrors(
+        fieldErrors ?? {
           _root:
             err instanceof Error
               ? err.message
               : "Something went wrong. Try again.",
-        });
-      }
+        },
+      );
     } finally {
       setSubmitting(false);
     }
   }
+
+  const hasIdentityError = errors.customerId || errors.vesselId;
+  const hasLogisticsError =
+    errors.origin ||
+    errors.destination ||
+    errors.departureAt ||
+    errors.arrivalAt ||
+    errors.status;
+  const hasCargoError = errors.cargoType || errors.weightKg;
 
   return (
     <form
       id={formId}
       onSubmit={handleSubmit}
       noValidate
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-6"
     >
-      <Field
-        label="Customer"
-        htmlFor={`${formId}-customerId`}
-        error={errors.customerId}
-        required
-      >
-        <SelectInput
-          id={`${formId}-customerId`}
-          value={values.customerId}
-          onChange={(e) => setField("customerId", e.target.value)}
-          aria-invalid={!!errors.customerId}
+      <Section title="Identity" describedBy="Who the booking is for.">
+        <Field
+          label="Customer"
+          htmlFor={`${formId}-customerId`}
+          error={errors.customerId}
           required
         >
-          <option value="">Select a customer…</option>
-          {[...customers]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((c) => (
+          <SelectInput
+            id={`${formId}-customerId`}
+            value={values.customerId}
+            onChange={(e) => setField("customerId", e.target.value)}
+            aria-invalid={Boolean(errors.customerId)}
+            required
+          >
+            <option value="">Select a customer…</option>
+            {sortedByName(customers).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
-        </SelectInput>
-      </Field>
+          </SelectInput>
+        </Field>
 
-      <Field
-        label="Vessel"
-        htmlFor={`${formId}-vesselId`}
-        error={errors.vesselId}
-        required
-      >
-        <SelectInput
-          id={`${formId}-vesselId`}
-          value={values.vesselId}
-          onChange={(e) => setField("vesselId", e.target.value)}
-          aria-invalid={!!errors.vesselId}
+        <Field
+          label="Vessel"
+          htmlFor={`${formId}-vesselId`}
+          error={errors.vesselId}
           required
         >
-          <option value="">Select a vessel…</option>
-          {[...vessels]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((v) => (
+          <SelectInput
+            id={`${formId}-vesselId`}
+            value={values.vesselId}
+            onChange={(e) => setField("vesselId", e.target.value)}
+            aria-invalid={Boolean(errors.vesselId)}
+            required
+          >
+            <option value="">Select a vessel…</option>
+            {sortedByName(vessels).map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>
             ))}
-        </SelectInput>
-      </Field>
+          </SelectInput>
+        </Field>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label="Origin"
-          htmlFor={`${formId}-origin`}
-          error={errors.origin}
-          required
-        >
-          <TextInput
-            id={`${formId}-origin`}
-            value={values.origin}
-            onChange={(e) => setField("origin", e.target.value)}
-            aria-invalid={!!errors.origin}
-            autoComplete="off"
-          />
-        </Field>
-        <Field
-          label="Destination"
-          htmlFor={`${formId}-destination`}
-          error={errors.destination}
-          required
-        >
-          <TextInput
-            id={`${formId}-destination`}
-            value={values.destination}
-            onChange={(e) => setField("destination", e.target.value)}
-            aria-invalid={!!errors.destination}
-            autoComplete="off"
-          />
-        </Field>
-      </div>
+      <Section
+        title="Logistics"
+        describedBy="Where and when the cargo travels."
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Origin"
+            htmlFor={`${formId}-origin`}
+            error={errors.origin}
+            required
+          >
+            <TextInput
+              id={`${formId}-origin`}
+              value={values.origin}
+              onChange={(e) => setField("origin", e.target.value)}
+              aria-invalid={Boolean(errors.origin)}
+              autoComplete="off"
+            />
+          </Field>
+          <Field
+            label="Destination"
+            htmlFor={`${formId}-destination`}
+            error={errors.destination}
+            required
+          >
+            <TextInput
+              id={`${formId}-destination`}
+              value={values.destination}
+              onChange={(e) => setField("destination", e.target.value)}
+              aria-invalid={Boolean(errors.destination)}
+              autoComplete="off"
+            />
+          </Field>
+        </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label="Cargo type"
-          htmlFor={`${formId}-cargoType`}
-          error={errors.cargoType}
-          required
-        >
-          <TextInput
-            id={`${formId}-cargoType`}
-            value={values.cargoType}
-            onChange={(e) => setField("cargoType", e.target.value)}
-            aria-invalid={!!errors.cargoType}
-            autoComplete="off"
-            list={`${formId}-cargoType-suggestions`}
-          />
-          {/* Light hints; no validation force. */}
-          <datalist id={`${formId}-cargoType-suggestions`}>
-            <option value="general" />
-            <option value="automotive" />
-            <option value="refrigerated" />
-            <option value="hazardous" />
-          </datalist>
-        </Field>
-        <Field
-          label="Weight (kg)"
-          htmlFor={`${formId}-weightKg`}
-          error={errors.weightKg}
-          required
-        >
-          <NumberInput
-            id={`${formId}-weightKg`}
-            value={values.weightKg}
-            onChange={(e) => setField("weightKg", e.target.value)}
-            aria-invalid={!!errors.weightKg}
-            min={1}
-            step={1}
-            inputMode="numeric"
-          />
-        </Field>
-      </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Departure"
+            htmlFor={`${formId}-departureAt`}
+            error={errors.departureAt}
+            hint="Local time."
+            required
+          >
+            <DateTimeInput
+              id={`${formId}-departureAt`}
+              value={values.departureAt}
+              onChange={(e) => setField("departureAt", e.target.value)}
+              aria-invalid={Boolean(errors.departureAt)}
+            />
+          </Field>
+          <Field
+            label="Arrival"
+            htmlFor={`${formId}-arrivalAt`}
+            error={errors.arrivalAt}
+            hint="Local time."
+            required
+          >
+            <DateTimeInput
+              id={`${formId}-arrivalAt`}
+              value={values.arrivalAt}
+              onChange={(e) => setField("arrivalAt", e.target.value)}
+              aria-invalid={Boolean(errors.arrivalAt)}
+            />
+          </Field>
+        </div>
 
-      <Field label="Status" htmlFor={`${formId}-status`} error={errors.status}>
-        <SelectInput
-          id={`${formId}-status`}
-          value={values.status}
-          onChange={(e) =>
-            setField("status", e.target.value as Booking["status"])
-          }
-          aria-invalid={!!errors.status}
+        <Field
+          label="Status"
+          htmlFor={`${formId}-status`}
+          error={errors.status}
+          hint="Defaults to Pending for new bookings."
+          optional
         >
-          {ALL_BOOKING_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {labelForStatus(s)}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
+          <SelectInput
+            id={`${formId}-status`}
+            value={values.status}
+            onChange={(e) =>
+              setField("status", e.target.value as Booking["status"])
+            }
+            aria-invalid={Boolean(errors.status)}
+          >
+            {ALL_BOOKING_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {labelForStatus(s)}
+              </option>
+            ))}
+          </SelectInput>
+        </Field>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label="Departure"
-          htmlFor={`${formId}-departureAt`}
-          error={errors.departureAt}
-          required
-        >
-          <DateTimeInput
-            id={`${formId}-departureAt`}
-            value={values.departureAt}
-            onChange={(e) => setField("departureAt", e.target.value)}
-            aria-invalid={!!errors.departureAt}
-          />
-        </Field>
-        <Field
-          label="Arrival"
-          htmlFor={`${formId}-arrivalAt`}
-          error={errors.arrivalAt}
-          required
-        >
-          <DateTimeInput
-            id={`${formId}-arrivalAt`}
-            value={values.arrivalAt}
-            onChange={(e) => setField("arrivalAt", e.target.value)}
-            aria-invalid={!!errors.arrivalAt}
-          />
-        </Field>
-      </div>
+      <Section title="Cargo" describedBy="What's being shipped.">
+        <div className="grid grid-cols-[1fr_9rem] gap-3">
+          <Field
+            label="Cargo type"
+            htmlFor={`${formId}-cargoType`}
+            error={errors.cargoType}
+            hint="Pick a suggestion or enter a free-form description."
+            required
+          >
+            <TextInput
+              id={`${formId}-cargoType`}
+              value={values.cargoType}
+              onChange={(e) => setField("cargoType", e.target.value)}
+              aria-invalid={Boolean(errors.cargoType)}
+              autoComplete="off"
+              list={`${formId}-cargoType-suggestions`}
+            />
+            <datalist id={`${formId}-cargoType-suggestions`}>
+              <option value="general" />
+              <option value="automotive" />
+              <option value="refrigerated" />
+              <option value="hazardous" />
+            </datalist>
+          </Field>
+          <Field
+            label="Weight"
+            htmlFor={`${formId}-weightKg`}
+            error={errors.weightKg}
+            hint="Whole kilograms."
+            required
+          >
+            <NumberInput
+              id={`${formId}-weightKg`}
+              value={values.weightKg}
+              onChange={(e) => setField("weightKg", e.target.value)}
+              aria-invalid={Boolean(errors.weightKg)}
+              min={1}
+              step={1}
+              inputMode="numeric"
+            />
+          </Field>
+        </div>
+      </Section>
 
       {errors._root ? (
         <p
@@ -325,9 +376,18 @@ export function BookingForm({
         </p>
       ) : null}
 
-      {/* The footer lives in the Drawer so it sticks to the bottom; we
-          render controls here as a fallback for form-submit wiring and
-          also expose them for screens without the drawer. */}
+      {/* Screen-reader hint summarising which sections have errors. Keeps
+          the visible form uncluttered; AT users still get a heads-up. */}
+      <p className="sr-only" aria-live="polite">
+        {[
+          hasIdentityError && "Identity has errors",
+          hasLogisticsError && "Logistics has errors",
+          hasCargoError && "Cargo has errors",
+        ]
+          .filter(Boolean)
+          .join(". ")}
+      </p>
+
       <div className="mt-2 flex items-center justify-end gap-2">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
@@ -348,6 +408,53 @@ export function BookingForm({
   );
 }
 
+function Section({
+  title,
+  describedBy,
+  children,
+}: {
+  title: string;
+  describedBy: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <p className="text-xs text-slate-500">{describedBy}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+type BuildResult =
+  | { ok: true; submission: Submission }
+  | { ok: false; errors: Record<string, string> };
+
+function buildSubmission(
+  mode: Mode,
+  defaults: BookingFormValues,
+  values: BookingFormValues,
+): BuildResult {
+  const coerced = coerceForSchema(values);
+
+  if (mode === "create") {
+    const parsed = createBookingSchema.safeParse(coerced);
+    if (!parsed.success) {
+      return { ok: false, errors: zodErrorToFieldMap(parsed.error) };
+    }
+    return { ok: true, submission: { mode: "create", payload: parsed.data } };
+  }
+
+  const diff = diffFormValues(defaults, values);
+  const parsed = patchBookingSchema.safeParse(diff);
+  if (!parsed.success) {
+    return { ok: false, errors: zodErrorToFieldMap(parsed.error) };
+  }
+  return { ok: true, submission: { mode: "edit", payload: parsed.data } };
+}
+
 function toFormValues(b: Booking): BookingFormValues {
   return {
     customerId: b.customerId,
@@ -364,37 +471,43 @@ function toFormValues(b: Booking): BookingFormValues {
 
 function coerceForSchema(v: BookingFormValues) {
   return {
-    ...v,
+    customerId: v.customerId,
+    vesselId: v.vesselId,
+    origin: v.origin,
+    destination: v.destination,
+    cargoType: v.cargoType,
     weightKg: v.weightKg.trim() === "" ? undefined : v.weightKg,
+    status: v.status,
     departureAt: v.departureAt ? localToIso(v.departureAt) : "",
     arrivalAt: v.arrivalAt ? localToIso(v.arrivalAt) : "",
   };
 }
 
-function diff(
+function diffFormValues(
   base: BookingFormValues,
   next: BookingFormValues,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  const coerced = coerceForSchema(next);
-  for (const key of Object.keys(next) as Array<keyof BookingFormValues>) {
-    if (base[key] !== next[key]) {
-      const value =
-        key === "weightKg"
-          ? Number(coerced.weightKg)
-          : key === "departureAt" || key === "arrivalAt"
-            ? coerced[key]
-            : next[key];
-      out[key] = value;
-    }
+): Partial<CreateBookingInput> {
+  const out: Partial<CreateBookingInput> = {};
+  if (base.customerId !== next.customerId) out.customerId = next.customerId;
+  if (base.vesselId !== next.vesselId) out.vesselId = next.vesselId;
+  if (base.origin !== next.origin) out.origin = next.origin;
+  if (base.destination !== next.destination) out.destination = next.destination;
+  if (base.cargoType !== next.cargoType) out.cargoType = next.cargoType;
+  if (base.weightKg !== next.weightKg) {
+    const n = Number(next.weightKg);
+    if (Number.isFinite(n)) out.weightKg = n;
+  }
+  if (base.status !== next.status) out.status = next.status;
+  if (base.departureAt !== next.departureAt && next.departureAt) {
+    out.departureAt = localToIso(next.departureAt);
+  }
+  if (base.arrivalAt !== next.arrivalAt && next.arrivalAt) {
+    out.arrivalAt = localToIso(next.arrivalAt);
   }
   return out;
 }
 
-function shallowEqualValues(
-  a: BookingFormValues,
-  b: BookingFormValues,
-): boolean {
+function valuesEqual(a: BookingFormValues, b: BookingFormValues): boolean {
   return (
     a.customerId === b.customerId &&
     a.vesselId === b.vesselId &&
@@ -416,8 +529,7 @@ function isoToLocal(iso: string): string {
 }
 
 function localToIso(local: string): string {
-  const d = new Date(local);
-  return d.toISOString();
+  return new Date(local).toISOString();
 }
 
 function labelForStatus(s: Booking["status"]): string {
@@ -429,6 +541,10 @@ function labelForStatus(s: Booking["status"]): string {
   }
 }
 
+function sortedByName<T extends { name: string }>(items: T[]): T[] {
+  return items.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function extractFieldErrors(err: unknown): Record<string, string> | null {
   if (!(err instanceof ApiError)) return null;
   if (err.status !== 400) return null;
@@ -438,7 +554,7 @@ function extractFieldErrors(err: unknown): Record<string, string> | null {
   if (!raw) return null;
 
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return null;
 
     const issues = parsed

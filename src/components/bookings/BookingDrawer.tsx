@@ -1,9 +1,8 @@
 import { useCallback, useState } from "react";
 import type { Booking, Customer, Vessel } from "@/lib/api/types";
-import type { CreateBookingInput } from "@/lib/api/schemas";
 import { api } from "@/lib/api/client";
 import { Drawer } from "@/components/ui/Drawer";
-import { BookingForm } from "./BookingForm";
+import { BookingForm, type Submission } from "./BookingForm";
 import { useToast } from "@/components/ui/Toast";
 
 export function BookingDrawer({
@@ -17,6 +16,7 @@ export function BookingDrawer({
 }: {
   open: boolean;
   mode: "create" | "edit";
+  /** Pre-fill for edit; undefined for create. */
   booking?: Booking;
   customers: Customer[];
   vessels: Vessel[];
@@ -25,24 +25,25 @@ export function BookingDrawer({
 }) {
   const { toast } = useToast();
   const [confirmClose, setConfirmClose] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
-  const [touched, setTouched] = useState(false);
-
   const handleSubmit = useCallback(
-    async (payload: CreateBookingInput, submitMode: "create" | "edit") => {
+    async (submission: Submission) => {
       const persisted =
-        submitMode === "create"
-          ? await api.createBooking(payload)
-          : await api.patchBooking(booking!.id, payload);
+        submission.mode === "create"
+          ? await api.createBooking(submission.payload)
+          : await api.patchBooking(booking!.id, submission.payload);
+
       onPersisted(persisted);
       toast({
         variant: "success",
-        title: submitMode === "create" ? "Booking created" : "Booking updated",
+        title:
+          submission.mode === "create" ? "Booking created" : "Booking updated",
         body: persisted.id,
       });
 
-      setTouched(false);
+      setDirty(false);
       setFormKey((k) => k + 1);
       onDismiss();
       return persisted;
@@ -51,16 +52,16 @@ export function BookingDrawer({
   );
 
   const handleDismissAttempt = useCallback(() => {
-    if (touched) {
+    if (dirty) {
       setConfirmClose(true);
       return;
     }
     onDismiss();
-  }, [touched, onDismiss]);
+  }, [dirty, onDismiss]);
 
   const forceClose = useCallback(() => {
     setConfirmClose(false);
-    setTouched(false);
+    setDirty(false);
     setFormKey((k) => k + 1);
     onDismiss();
   }, [onDismiss]);
@@ -76,21 +77,16 @@ export function BookingDrawer({
             : `Edit booking ${booking?.id ?? ""}`
         }
       >
-        <div
-          onInput={() => {
-            if (!touched) setTouched(true);
-          }}
-        >
-          <BookingForm
-            key={formKey}
-            mode={mode}
-            initial={mode === "edit" ? booking : undefined}
-            customers={customers}
-            vessels={vessels}
-            onSubmit={handleSubmit}
-            onCancel={handleDismissAttempt}
-          />
-        </div>
+        <BookingForm
+          key={formKey}
+          mode={mode}
+          initial={mode === "edit" ? booking : undefined}
+          customers={customers}
+          vessels={vessels}
+          onSubmit={handleSubmit}
+          onCancel={handleDismissAttempt}
+          onDirtyChange={setDirty}
+        />
       </Drawer>
 
       {confirmClose ? (
