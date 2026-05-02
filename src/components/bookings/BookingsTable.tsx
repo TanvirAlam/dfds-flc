@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent } from "react";
+import { memo, useMemo, type KeyboardEvent } from "react";
 import type { BookingRow } from "@/lib/hooks/useBookings";
 import { formatDateTime, formatWeightKg } from "@/lib/format";
 import { useTableSort } from "@/lib/hooks/useTableSort";
@@ -10,6 +10,33 @@ import {
 import { Th, SortableTh, Td, TruncatedText } from "@/components/ui/Table";
 import { StatusBadge } from "./StatusBadge";
 
+/**
+ * Bookings data table.
+ *
+ * UX decisions:
+ *
+ * 1. **Sticky header.** The table lives inside a bounded-height scroll
+ *    container (`max-h-*`), which is what `position: sticky` on `<thead>`
+ *    actually needs to work — a sticky element can only stick inside a
+ *    scrolling ancestor. Without the bound, the table grows to page
+ *    height and the header scrolls away with the page.
+ *
+ * 2. **Stable row height.** Every row is `h-12`. That stops rows jumping
+ *    around as their text content changes length (sort/filter) and makes
+ *    keyboard focus travel feel smooth.
+ *
+ * 3. **Row activation.** When `onRowActivate` is passed, rows become
+ *    `role="button"`, gain a hover/focus affordance and a trailing chevron
+ *    so the click target is unambiguous. Activation fires on click or
+ *    Enter/Space for keyboard users.
+ *
+ * 4. **`React.memo` on rows.** A single filter/sort change should not
+ *    re-render unchanged rows. Rows are memoised on value-equality (data
+ *    is effectively immutable from the API response), and the `onActivate`
+ *    handler is deliberately left as a function prop — if the parent
+ *    passes a new identity on every render we accept that cost; callers
+ *    can `useCallback` if profiling says so.
+ */
 export function BookingsTable({
   rows,
   onRowActivate,
@@ -29,11 +56,17 @@ export function BookingsTable({
     return copy;
   }, [rows, sort]);
 
+  const showActivate = Boolean(onRowActivate);
+
   return (
-    <div className="relative overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div
+      // Bounded height → sticky header has something to stick inside.
+      // `overflow-auto` handles both horizontal jank and vertical scroll.
+      className="relative max-h-[calc(100vh-18rem)] min-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+    >
       <table className="min-w-full border-collapse text-sm">
         <caption className="sr-only">Freight bookings</caption>
-        <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_var(--tw-ring-color)] ring-slate-200">
+        <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_theme(colors.slate.200)]">
           <tr>
             <Th scope="col" className="w-32">
               Ref
@@ -86,11 +119,20 @@ export function BookingsTable({
             >
               ETA
             </SortableTh>
+            {showActivate ? (
+              <Th scope="col" className="w-10">
+                <span className="sr-only">Open</span>
+              </Th>
+            ) : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {sortedRows.map((row) => (
-            <BookingRowView key={row.id} row={row} onActivate={onRowActivate} />
+            <BookingRowView
+              key={row.id}
+              row={row}
+              onActivate={onRowActivate}
+            />
           ))}
         </tbody>
       </table>
@@ -98,7 +140,7 @@ export function BookingsTable({
   );
 }
 
-function BookingRowView({
+const BookingRowView = memo(function BookingRowView({
   row,
   onActivate,
 }: {
@@ -122,8 +164,10 @@ function BookingRowView({
       aria-label={activatable ? `Open booking ${row.id}` : `Booking ${row.id}`}
       onClick={activatable ? () => onActivate?.(row) : undefined}
       onKeyDown={handleKeyDown}
+      // `h-12` keeps every row the same height so sort/filter doesn't jerk
+      // the viewport. `group` lets the chevron fade in on hover/focus.
       className={
-        "group outline-none transition-colors " +
+        "group h-12 outline-none transition-colors " +
         "hover:bg-slate-50 focus-visible:bg-sky-50 " +
         "focus-visible:shadow-[inset_2px_0_0_0_theme(colors.sky.500)] " +
         (activatable ? "cursor-pointer" : "")
@@ -164,6 +208,19 @@ function BookingRowView({
       <Td className="tabular-nums text-slate-700">
         {formatDateTime(row.arrivalAt)}
       </Td>
+      {activatable ? (
+        <Td className="text-right">
+          <span
+            aria-hidden
+            // Always rendered so the cell width is stable; fades in on
+            // hover/focus for a clear affordance without visual noise at
+            // rest.
+            className="inline-block text-slate-300 transition-opacity group-hover:text-slate-600 group-focus-visible:text-slate-900"
+          >
+            ›
+          </span>
+        </Td>
+      ) : null}
     </tr>
   );
-}
+});

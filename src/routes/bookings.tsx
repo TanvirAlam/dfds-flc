@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { BookingsTable } from "@/components/bookings/BookingsTable";
 import { BookingsHeader } from "@/components/bookings/BookingsHeader";
@@ -9,6 +9,7 @@ import {
 } from "@/components/bookings/BookingsStates";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterChips } from "@/components/filters/FilterChips";
+import type { BookingRow } from "@/lib/hooks/useBookings";
 import { useBookings } from "@/lib/hooks/useBookings";
 import {
   EMPTY_FILTERS,
@@ -49,6 +50,14 @@ function BookingsPage() {
     // Users can still share the URL; browser Back jumps out of the view.
     navigate({ search: filtersToSearch(next), replace: true });
   }
+
+  // Stub until the edit/create flow (ticket #5) lands. Stable identity via
+  // `useCallback` so memoised rows don't re-render on unrelated parent
+  // updates (e.g. filter changes that don't touch that row).
+  const handleRowActivate = useCallback((row: BookingRow) => {
+    // eslint-disable-next-line no-console
+    console.info("[bookings] activate", row.id);
+  }, []);
 
   const filteredRows = useMemo(
     () => rows.filter((r) => matchesFilters(r, filters)),
@@ -118,7 +127,7 @@ function BookingsPage() {
         ) : filteredRows.length === 0 ? (
           <FilteredEmpty onClear={() => setFilters(EMPTY_FILTERS)} />
         ) : (
-          <BookingsTable rows={filteredRows} />
+          <BookingsTable rows={filteredRows} onRowActivate={handleRowActivate} />
         )
       ) : null}
     </main>

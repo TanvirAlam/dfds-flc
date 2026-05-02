@@ -76,6 +76,21 @@ specific observations — this file tracks them as I hit them.
   require a schema migration. The closest honest proxy at this point is
   the `vessel` filter, which ships.
 
+### No pagination / virtualisation (yet)
+- Seeded dataset is 20 rows. A realistic ops view is tens to low-hundreds.
+  A native `<table>` renders a few hundred rows on a laptop without
+  measurable lag; adding pagination or virtualisation now would be
+  premature abstraction.
+- The table is already wrapped in a bounded-height scroll container
+  (`BookingsTable.tsx`), so the growth path is clear:
+  - **First**: if we start seeing noticeable rendering at ~500+ rows,
+    move the row component to `react-window` / `@tanstack/react-virtual`
+    and keep the `<thead>` outside the virtualised body.
+  - **Second**: if the backend starts returning thousands, move filtering
+    and paging server-side (`?limit`/`?offset`) and replace the
+    in-memory filter with a fetch-on-filter flow. The URL contract stays
+    identical because filter state is already URL-serialised.
+
 ### URL as the source of truth for filter state
 - `validateSearch` in `src/routes/bookings.tsx` defines the search schema;
   `useSearch`/`useNavigate` read/write it. Benefits: shareable filtered
