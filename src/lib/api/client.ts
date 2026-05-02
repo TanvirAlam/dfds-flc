@@ -1,4 +1,8 @@
 import type { Booking, Customer, Vessel } from "./types";
+import type {
+  CreateBookingInput,
+  PatchBookingInput,
+} from "./schemas";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -12,11 +16,23 @@ export class ApiError extends Error {
   }
 }
 
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  signal?: AbortSignal,
+): Promise<T> {
   const res = await fetch(path, {
+    ...init,
     signal,
-    headers: { Accept: "application/json" },
+    headers: {
+      Accept: "application/json",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...init.headers,
+    },
   });
+
+  // 204 No Content — nothing to parse.
+  if (res.status === 204) return undefined as T;
 
   if (!res.ok) {
     let body: unknown = null;
@@ -34,6 +50,9 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
+const getJson = <T>(path: string, signal?: AbortSignal) =>
+  request<T>(path, {}, signal);
+
 export const api = {
   listBookings: (signal?: AbortSignal) =>
     getJson<Booking[]>("/api/bookings", signal),
@@ -41,4 +60,22 @@ export const api = {
     getJson<Customer[]>("/api/customers", signal),
   listVessels: (signal?: AbortSignal) =>
     getJson<Vessel[]>("/api/vessels", signal),
+
+  createBooking: (input: CreateBookingInput, signal?: AbortSignal) =>
+    request<Booking>(
+      "/api/bookings",
+      { method: "POST", body: JSON.stringify(input) },
+      signal,
+    ),
+
+  patchBooking: (
+    id: string,
+    input: PatchBookingInput,
+    signal?: AbortSignal,
+  ) =>
+    request<Booking>(
+      `/api/bookings/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+      signal,
+    ),
 };

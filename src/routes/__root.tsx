@@ -1,5 +1,6 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -11,6 +12,13 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootDocument,
+  // Wrap every page in the toast provider so any screen can push a toast
+  // without re-wiring the tree. Kept tiny (see `src/components/ui/Toast.tsx`).
+  component: () => (
+    <ToastProvider>
+      <Outlet />
+    </ToastProvider>
+  ),
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {

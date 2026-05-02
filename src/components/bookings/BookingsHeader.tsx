@@ -6,11 +6,13 @@ export function BookingsHeader({
   total,
   filtered,
   onRefresh,
+  onNewBooking,
 }: {
   status: AsyncStatus;
   total: number;
   filtered: number;
   onRefresh: () => void;
+  onNewBooking: () => void;
 }) {
   const isFiltered = status === "success" && filtered !== total;
 
@@ -37,6 +39,14 @@ export function BookingsHeader({
           disabled={status === "loading"}
         >
           Refresh
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={onNewBooking}
+          disabled={status !== "success"}
+        >
+          New booking
         </Button>
       </div>
     </header>

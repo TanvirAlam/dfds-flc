@@ -16,6 +16,13 @@ export interface UseBookingsResult {
   vessels: Vessel[];
   error: Error | null;
   refetch: () => void;
+  /**
+   * Insert or replace a booking in the local cache. Used by the
+   * create/edit flow to reflect a successful server write without a full
+   * refetch. No network IO — caller is responsible for having already
+   * persisted the change.
+   */
+  upsertBooking: (booking: Booking) => void;
 }
 
 export function useBookings(): UseBookingsResult {
@@ -27,6 +34,16 @@ export function useBookings(): UseBookingsResult {
   const [reloadToken, setReloadToken] = useState(0);
 
   const refetch = useCallback(() => setReloadToken((n) => n + 1), []);
+
+  const upsertBooking = useCallback((booking: Booking) => {
+    setBookings((prev) => {
+      const idx = prev.findIndex((b) => b.id === booking.id);
+      if (idx === -1) return [booking, ...prev];
+      const copy = prev.slice();
+      copy[idx] = booking;
+      return copy;
+    });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,5 +101,13 @@ export function useBookings(): UseBookingsResult {
     }));
   }, [bookings, customers, vessels]);
 
-  return { status, rows, customers, vessels, error, refetch };
+  return {
+    status,
+    rows,
+    customers,
+    vessels,
+    error,
+    refetch,
+    upsertBooking,
+  };
 }

@@ -7,9 +7,11 @@ import {
   BookingsError,
   BookingsLoading,
 } from "@/components/bookings/BookingsStates";
+import { BookingDrawer } from "@/components/bookings/BookingDrawer";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { FilterChips } from "@/components/filters/FilterChips";
 import type { BookingRow } from "@/lib/hooks/useBookings";
+import type { Booking } from "@/lib/api/types";
 import { useBookings } from "@/lib/hooks/useBookings";
 import {
   EMPTY_FILTERS,
@@ -24,15 +26,30 @@ import {
   type BookingsSearchParams,
 } from "@/lib/filters/bookings";
 
+/**
+ * URL is the source of truth for filter state *and* drawer state.
+ *
+ * `?edit=new` → create drawer.
+ * `?edit=bkg_05` → edit drawer for that booking.
+ * (any other value / absent) → no drawer.
+ *
+ * Consequences:
+ *   - Share a link with `?edit=bkg_05` and it opens on that row.
+ *   - Browser Back closes the drawer (doesn't navigate away).
+ *   - Reload-safe.
+ */
+interface BookingsSearch extends BookingsSearchParams {
+  edit?: string;
+}
+
 export const Route = createFileRoute("/bookings")({
-  // Loose schema: accept unknown strings, ignore what we can't understand.
-  // Keeps share-links forgiving and future-proof (unknown keys drop out).
-  validateSearch: (search: Record<string, unknown>): BookingsSearchParams => ({
+  validateSearch: (search: Record<string, unknown>): BookingsSearch => ({
     status: typeof search.status === "string" ? search.status : undefined,
     customerId:
       typeof search.customerId === "string" ? search.customerId : undefined,
     vesselId: typeof search.vesselId === "string" ? search.vesselId : undefined,
     q: typeof search.q === "string" ? search.q : undefined,
+    edit: typeof search.edit === "string" ? search.edit : undefined,
   }),
   component: BookingsPage,
 });
@@ -40,31 +57,68 @@ export const Route = createFileRoute("/bookings")({
 function BookingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { status, rows, customers, vessels, error, refetch } = useBookings();
+  const { status, rows, customers, vessels, error, refetch, upsertBooking } =
+    useBookings();
 
-  // URL is the source of truth. Parse once per search change.
   const filters: BookingFilters = useMemo(() => parseSearch(search), [search]);
 
   function setFilters(next: BookingFilters) {
-    // `replace: true` — typing into the search box shouldn't spam history.
-    // Users can still share the URL; browser Back jumps out of the view.
-    navigate({ search: filtersToSearch(next), replace: true });
+    // Keep `edit` sticky across filter changes so typing doesn't close the drawer.
+    navigate({
+      search: { ...filtersToSearch(next), edit: search.edit },
+      replace: true,
+    });
   }
 
-  // Stub until the edit/create flow (ticket #5) lands. Stable identity via
-  // `useCallback` so memoised rows don't re-render on unrelated parent
-  // updates (e.g. filter changes that don't touch that row).
-  const handleRowActivate = useCallback((row: BookingRow) => {
-    // eslint-disable-next-line no-console
-    console.info("[bookings] activate", row.id);
-  }, []);
+  /* ---------------- drawer state derived from URL ---------------- */
+
+  const drawerMode: "create" | "edit" | null = search.edit
+    ? search.edit === "new"
+      ? "create"
+      : "edit"
+    : null;
+
+  const editingBooking = useMemo(() => {
+    if (drawerMode !== "edit") return undefined;
+    return rows.find((r) => r.id === search.edit);
+  }, [drawerMode, rows, search.edit]);
+
+  const openDrawer = useCallback(
+    (target: "new" | string) => {
+      navigate({ search: { ...search, edit: target } });
+    },
+    [navigate, search],
+  );
+
+  const closeDrawer = useCallback(() => {
+    // Strip `edit` from the URL; keep filters.
+    const { edit: _drop, ...rest } = search;
+    navigate({ search: rest, replace: false });
+  }, [navigate, search]);
+
+  const handlePersisted = useCallback(
+    (persisted: Booking) => {
+      upsertBooking(persisted);
+    },
+    [upsertBooking],
+  );
+
+  /* ---------------- row activation = open edit drawer ------------- */
+
+  const handleRowActivate = useCallback(
+    (row: BookingRow) => {
+      openDrawer(row.id);
+    },
+    [openDrawer],
+  );
+
+  /* ---------------- filtered rows + chip labels ------------------- */
 
   const filteredRows = useMemo(
     () => rows.filter((r) => matchesFilters(r, filters)),
     [rows, filters],
   );
 
-  // Chip labels need names, not ids.
   const customerLabel = useMemo(
     () =>
       filters.customerId
@@ -87,11 +141,9 @@ function BookingsPage() {
         total={rows.length}
         filtered={filteredRows.length}
         onRefresh={refetch}
+        onNewBooking={() => openDrawer("new")}
       />
 
-      {/* Filter UI is rendered on success so we have customer/vessel lists
-          to populate the dropdowns. While loading/errored we hide it rather
-          than show empty dropdowns that can't be used. */}
       {status === "success" ? (
         <>
           <FilterBar
@@ -127,9 +179,22 @@ function BookingsPage() {
         ) : filteredRows.length === 0 ? (
           <FilteredEmpty onClear={() => setFilters(EMPTY_FILTERS)} />
         ) : (
-          <BookingsTable rows={filteredRows} onRowActivate={handleRowActivate} />
+          <BookingsTable
+            rows={filteredRows}
+            onRowActivate={handleRowActivate}
+          />
         )
       ) : null}
+
+      <BookingDrawer
+        open={drawerMode !== null}
+        mode={drawerMode ?? "create"}
+        booking={editingBooking}
+        customers={customers}
+        vessels={vessels}
+        onDismiss={closeDrawer}
+        onPersisted={handlePersisted}
+      />
     </main>
   );
 }

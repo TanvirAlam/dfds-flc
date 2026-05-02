@@ -96,6 +96,40 @@ specific observations — this file tracks them as I hit them.
   require a schema migration. The closest honest proxy at this point is
   the `vessel` filter, which ships.
 
+### Side drawer for create/edit (not modal, not a route)
+- **Decision:** create and edit both happen in a right-side `<dialog>`-based
+  drawer, opened via a URL query param (`?edit=new` or `?edit=bkg_05`).
+- **Why drawer over modal:** ops users scan the table; keeping the list
+  visible while editing lets them eyeball adjacent rows without losing
+  context. Centred modals also scroll awkwardly when the form is tall.
+- **Why drawer over a dedicated route:** a route would discard list state
+  (filters, sort, scroll) on open/close without extra preservation code.
+  The drawer keeps all of that live.
+- **Why the native `<dialog>` element:** focus trap, `Escape` handling,
+  and backdrop inertness come for free from the browser. No a11y library
+  required; no focus-manager to debug. Stacks cleanly when the "discard
+  changes?" confirm opens on top.
+- **URL state:** sharable (`/bookings?edit=bkg_05` opens on that row),
+  reload-safe, and browser Back closes the drawer instead of navigating
+  away from the list.
+
+### Pessimistic submit (not optimistic)
+- **Decision:** the submit button disables, the form waits for the server
+  response, and only then do we upsert the row + show the success toast.
+- **Why not optimistic:** a freight booking has real side effects —
+  capacity changes, schedule implications, customer-facing commitments.
+  A row that appears "saved" and then disappears on a server 400/500 is
+  worse than a 200ms spinner. The trade-off would flip for a chat message
+  or a like button; it does not flip for logistics.
+- **Anti-double-submit:** the submit button is `disabled` while pending,
+  and the form also guards with a 500ms soft lock (`lockedAt` in
+  `BookingForm.tsx`) to survive any race where a double-click lands
+  before the disable paints.
+- **Error surfacing:** server 400 bodies are parsed as JSON-encoded
+  `ZodError.issues` and mapped to per-field errors
+  (`extractFieldErrors` in `BookingForm.tsx`). If the server ever changes
+  its error shape, that one function is the only place to update.
+
 ### No pagination / virtualisation (yet)
 - Seeded dataset is 20 rows. A realistic ops view is tens to low-hundreds.
   A native `<table>` renders a few hundred rows on a laptop without
