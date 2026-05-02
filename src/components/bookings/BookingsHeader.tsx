@@ -3,13 +3,17 @@ import { Button } from "@/components/ui/Button";
 
 export function BookingsHeader({
   status,
-  count,
+  total,
+  filtered,
   onRefresh,
 }: {
   status: AsyncStatus;
-  count: number;
+  total: number;
+  filtered: number;
   onRefresh: () => void;
 }) {
+  const isFiltered = status === "success" && filtered !== total;
+
   return (
     <header className="mb-6 flex items-end justify-between gap-4">
       <div>
@@ -20,8 +24,10 @@ export function BookingsHeader({
       </div>
       <div className="flex items-center gap-3 text-sm text-slate-600">
         {status === "success" ? (
-          <span aria-live="polite">
-            {count} booking{count === 1 ? "" : "s"}
+          <span aria-live="polite" className="tabular-nums">
+            {isFiltered
+              ? `${filtered} of ${total} bookings`
+              : `${total} booking${total === 1 ? "" : "s"}`}
           </span>
         ) : null}
         <Button

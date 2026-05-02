@@ -54,3 +54,32 @@ specific observations — this file tracks them as I hit them.
   is honest and easy to defend. If a second screen needs caching or
   background refetching, pulling in `@tanstack/react-query` is the next
   move.
+
+### Client-side filtering (not server-side)
+- Rationale: the `/api/bookings` endpoint accepts `?status=`, `?customerId=`,
+  `?vesselId=` but each is **single-valued**, so a multi-select status
+  filter would need either multiple requests or an API change to accept
+  a list. The seeded dataset is ~20 rows; realistic ops views are
+  low-hundreds. Filtering in memory is simpler, keeps one code path, and
+  is well within acceptable for this scale.
+- If the dataset grows past a few thousand rows, I'd: (a) extend the API
+  to accept array params (`?status=pending,confirmed`), (b) move the
+  predicate in `src/lib/filters/bookings.ts#matchesFilters` behind a
+  feature flag that chooses server vs client, and (c) keep URL-sync
+  identical so the URL stays the contract either way.
+- Filter code: `src/lib/filters/bookings.ts`.
+
+### "Sailing" filter intentionally omitted
+- The README mentions sailings, but `bookings` rows have no `sailingId`
+  column (`src/server/db/schema.ts:46-66`) — they reference a `vesselId`
+  and have free-text `origin`/`destination`. Filtering by sailing would
+  require a schema migration. The closest honest proxy at this point is
+  the `vessel` filter, which ships.
+
+### URL as the source of truth for filter state
+- `validateSearch` in `src/routes/bookings.tsx` defines the search schema;
+  `useSearch`/`useNavigate` read/write it. Benefits: shareable filtered
+  views, reload-safe, browser Back is undo for free. Trade-off: every
+  keystroke in the ref-search input writes to the URL with `replace: true`
+  so it doesn't pollute history. A debounce is a cheap follow-up if the
+  URL-rewrite cost ever shows up in the React Profiler.

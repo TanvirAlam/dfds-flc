@@ -12,6 +12,8 @@ export interface BookingRow extends Booking {
 export interface UseBookingsResult {
   status: AsyncStatus;
   rows: BookingRow[];
+  customers: Customer[];
+  vessels: Vessel[];
   error: Error | null;
   refetch: () => void;
 }
@@ -82,5 +84,5 @@ export function useBookings(): UseBookingsResult {
     }));
   }, [bookings, customers, vessels]);
 
-  return { status, rows, error, refetch };
+  return { status, rows, customers, vessels, error, refetch };
 }
