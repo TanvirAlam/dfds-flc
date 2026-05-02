@@ -6,20 +6,6 @@ import { Drawer } from "@/components/ui/Drawer";
 import { BookingForm } from "./BookingForm";
 import { useToast } from "@/components/ui/Toast";
 
-/**
- * Owns:
- *   - drawer visibility (driven by the `open`/`mode` props which come
- *     from the URL),
- *   - the "you have unsaved changes" confirm when the user tries to
- *     close a dirty form,
- *   - calling the right API method and handing the result back via
- *     `onPersisted` so the page can upsert the row.
- *
- * The form itself is a dumb child: it takes initial values, reports
- * submits as a promise. This split keeps network + URL state out of the
- * form and makes the form trivial to reuse (e.g. on a detail page
- * later).
- */
 export function BookingDrawer({
   open,
   mode,
@@ -31,7 +17,6 @@ export function BookingDrawer({
 }: {
   open: boolean;
   mode: "create" | "edit";
-  /** Pre-fill for edit; undefined for create. */
   booking?: Booking;
   customers: Customer[];
   vessels: Vessel[];
@@ -42,24 +27,6 @@ export function BookingDrawer({
   const [confirmClose, setConfirmClose] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
-  // We track "is the form dirty" in a ref via a callback from the form's
-  // submit handler. Rather than plumb state upward from a controlled form,
-  // we rely on the simpler contract: parent only confirms when the form
-  // *reports* dirty. Since the form is remounted per open (via `key`),
-  // that state stays local. Here we use an indirect approach: the form
-  // fires `onCancel` which passes through our guarded path, and the
-  // dirty check is delegated to a native `<form>`'s `reportValidity` —
-  // but a simpler, explicit signal is nicer. We read dirty from the form
-  // through a shared callback.
-  //
-  // In this iteration: the form exposes `dirty` implicitly by enabling
-  // the Save button only when dirty. For the close guard we listen for
-  // the user attempting to dismiss and ask them — we can't reach into
-  // the child, so we over-confirm (ask on any dismiss). To avoid being
-  // annoying when the form hasn't been touched, we reset the child on
-  // each `open` via `key={formKey}` and only guard when *we* know the
-  // form may have been edited. This is tracked with a simple "touched"
-  // signal on submit attempts / cancel attempts below.
   const [touched, setTouched] = useState(false);
 
   const handleSubmit = useCallback(
@@ -74,7 +41,7 @@ export function BookingDrawer({
         title: submitMode === "create" ? "Booking created" : "Booking updated",
         body: persisted.id,
       });
-      // Reset dirty tracking and close.
+
       setTouched(false);
       setFormKey((k) => k + 1);
       onDismiss();
@@ -103,10 +70,12 @@ export function BookingDrawer({
       <Drawer
         open={open}
         onDismiss={handleDismissAttempt}
-        title={mode === "create" ? "New booking" : `Edit booking ${booking?.id ?? ""}`}
+        title={
+          mode === "create"
+            ? "New booking"
+            : `Edit booking ${booking?.id ?? ""}`
+        }
       >
-        {/* We track dirtiness with a simple "field changed" listener wrapping
-            the form — see the onInput handler below. */}
         <div
           onInput={() => {
             if (!touched) setTouched(true);
@@ -153,9 +122,6 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // Native <dialog> again — gives us the focus trap for free. Because it's
-  // opened while the outer drawer dialog is already open, stacking is
-  // handled by the browser (last-opened is on top).
   return (
     <dialog
       open
@@ -163,7 +129,10 @@ function ConfirmDialog({
       className="fixed inset-0 z-[10000] m-auto w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/40"
     >
       <div className="p-5">
-        <h3 id="confirm-title" className="text-base font-semibold text-slate-900">
+        <h3
+          id="confirm-title"
+          className="text-base font-semibold text-slate-900"
+        >
           {title}
         </h3>
         <p className="mt-2 text-sm text-slate-600">{body}</p>

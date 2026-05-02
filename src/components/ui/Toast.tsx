@@ -9,18 +9,6 @@ import {
   type ReactNode,
 } from "react";
 
-/**
- * Minimal toast system.
- *
- * Why not pull in sonner/react-hot-toast: neither is in the dep tree, the
- * UX surface is one form, and the whole thing fits in 60 lines. If a
- * second team adopts this pattern we'd reach for a library.
- *
- * Auto-dismisses after `duration` (default 4s). `role="status"` for
- * success, `role="alert"` for errors so screen readers announce them
- * appropriately.
- */
-
 export type ToastVariant = "success" | "error";
 
 export interface Toast {
@@ -50,12 +38,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((t: Omit<Toast, "id">) => {
-    const id = nextId.current++;
-    setToasts((prev) => [...prev, { ...t, id }]);
-    // Fire-and-forget; removal is also safe if the toast already unmounted.
-    window.setTimeout(() => remove(id), 4000);
-  }, [remove]);
+  const toast = useCallback(
+    (t: Omit<Toast, "id">) => {
+      const id = nextId.current++;
+      setToasts((prev) => [...prev, { ...t, id }]);
+      window.setTimeout(() => remove(id), 4000);
+    },
+    [remove],
+  );
 
   const value = useMemo(() => ({ toast }), [toast]);
 
@@ -95,7 +85,6 @@ function ToastView({
   toast: Toast;
   onDismiss: () => void;
 }) {
-  // Remount on each mount (new toast) so the CSS animation runs fresh.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);

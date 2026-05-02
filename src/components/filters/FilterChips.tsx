@@ -3,16 +3,6 @@ import type { BookingFilters } from "@/lib/filters/bookings";
 import { isEmpty } from "@/lib/filters/bookings";
 import { StatusBadge } from "@/components/bookings/StatusBadge";
 
-/**
- * Chips summarise active filters. Status chips render the actual
- * `StatusBadge` so the visual language is consistent with the table and
- * status filter controls — one source of truth for "what does 'pending'
- * look like".
- *
- * A stable `min-h-9` reserves space so toggling chips doesn't shove the
- * table up and down (layout-shift acceptance criterion from the filters
- * ticket, kept here for safety).
- */
 export function FilterChips({
   filters,
   customerLabel,
@@ -81,7 +71,6 @@ export function FilterChips({
   );
 }
 
-/** Status chip = the canonical `StatusBadge` + a remove button beside it. */
 function StatusChip({
   status,
   onRemove,

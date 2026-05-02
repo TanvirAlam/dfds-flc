@@ -13,39 +13,17 @@ import {
   type CreateBookingInput,
   zodErrorToFieldMap,
 } from "@/lib/api/schemas";
-import { Field, DateTimeInput, NumberInput, SelectInput, TextInput } from "@/components/ui/Field";
+import {
+  Field,
+  DateTimeInput,
+  NumberInput,
+  SelectInput,
+  TextInput,
+} from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { ALL_BOOKING_STATUSES } from "@/lib/filters/bookings";
 import { ApiError } from "@/lib/api/client";
 import { z } from "zod";
-
-/**
- * Create/edit booking form.
- *
- * Single component for both modes. Pass `initial` to edit; omit it to
- * create. The shape of the submit action differs (`POST` vs `PATCH`) so
- * we delegate it to the parent via `onSubmit`, which returns a promise
- * that resolves with the persisted booking or rejects with an error.
- *
- * Validation strategy:
- *   - The client Zod schema in `src/lib/api/schemas.ts` mirrors the
- *     server's. Local parse is best-effort — it catches obvious problems
- *     so we don't round-trip, but the server is the final authority.
- *   - Server 400 responses are surfaced per-field when they contain a
- *     Zod-style path. `src/server/api/bookings.ts` currently returns
- *     `{ error: err.message }`; the message string is parsed in
- *     `extractFieldErrorsFromServer` below. If the server starts
- *     returning `{ errors: [...] }`, this function is where to update.
- *
- * Submit handling: pessimistic. A freight booking has real-world
- * implications (capacity, departures). Showing a row optimistically and
- * then removing it on failure would be worse than a brief pending state.
- * The submit button shows a spinner while in flight.
- *
- * Anti-double-submit: the submit button is `disabled` while `submitting`,
- * and we also guard the submit handler with a ref so a double-click that
- * races the `disabled` paint is still a no-op.
- */
 
 type Mode = "create" | "edit";
 
@@ -55,12 +33,9 @@ export interface BookingFormValues {
   origin: string;
   destination: string;
   cargoType: string;
-  /** Kept as a string so the input can hold "" while the user types. */
   weightKg: string;
   status: Booking["status"];
-  /** `datetime-local` format, e.g. "2026-05-10T14:30". */
   departureAt: string;
-  /** Same as above. */
   arrivalAt: string;
 }
 
@@ -85,11 +60,9 @@ export function BookingForm({
   onCancel,
 }: {
   mode: Mode;
-  /** Present when editing; absent when creating. */
   initial?: Booking;
   customers: Customer[];
   vessels: Vessel[];
-  /** Returns the persisted booking on success; throws on failure. */
   onSubmit: (payload: CreateBookingInput, mode: Mode) => Promise<Booking>;
   onCancel: () => void;
 }) {
@@ -103,14 +76,9 @@ export function BookingForm({
   const [values, setValues] = useState<BookingFormValues>(defaults);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  /**
-   * Race-proof double-submit guard. `disabled={submitting}` on the button
-   * *usually* wins, but "usually" isn't good enough for bookings.
-   */
+
   const [lockedAt, setLockedAt] = useState<number | null>(null);
 
-  // Re-sync local state if the parent swaps which booking is being edited
-  // (e.g. opens the drawer for a different row) without unmounting the form.
   useEffect(() => {
     setValues(defaults);
     setErrors({});
@@ -136,14 +104,10 @@ export function BookingForm({
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    // Double-submit guard — belt and braces alongside `disabled`.
     const now = Date.now();
     if (submitting || (lockedAt && now - lockedAt < 500)) return;
     setLockedAt(now);
 
-    // Client-side pre-flight. Create-schema is strict; edit-schema is
-    // partial but we still run it for sanity — then in edit mode we only
-    // send the keys that actually changed.
     const schema = mode === "create" ? createBookingSchema : patchBookingSchema;
     const coerced = coerceForSchema(values);
 
@@ -162,7 +126,6 @@ export function BookingForm({
           : (diff(defaults, values) as CreateBookingInput);
 
       await onSubmit(payload, mode);
-      // Parent handles closing + toasting on success.
     } catch (err) {
       const fieldErrors = extractFieldErrors(err);
       if (fieldErrors) {
@@ -307,11 +270,7 @@ export function BookingForm({
         </Field>
       </div>
 
-      <Field
-        label="Status"
-        htmlFor={`${formId}-status`}
-        error={errors.status}
-      >
+      <Field label="Status" htmlFor={`${formId}-status`} error={errors.status}>
         <SelectInput
           id={`${formId}-status`}
           value={values.status}
@@ -389,14 +348,6 @@ export function BookingForm({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Convert a `Booking` (with ISO strings) into the form's shape (with
- * `datetime-local` strings and a stringified weight).
- */
 function toFormValues(b: Booking): BookingFormValues {
   return {
     customerId: b.customerId,
@@ -411,11 +362,6 @@ function toFormValues(b: Booking): BookingFormValues {
   };
 }
 
-/**
- * Coerce form values into the shape the schema expects to parse:
- *   - weightKg: string → number-ish for `z.coerce.number()`
- *   - departureAt/arrivalAt: `datetime-local` → ISO-8601 UTC
- */
 function coerceForSchema(v: BookingFormValues) {
   return {
     ...v,
@@ -425,10 +371,6 @@ function coerceForSchema(v: BookingFormValues) {
   };
 }
 
-/**
- * Diff for the edit flow. We only send changed fields on PATCH — keeps
- * server logs meaningful and lets the server skip no-op validation.
- */
 function diff(
   base: BookingFormValues,
   next: BookingFormValues,
@@ -469,14 +411,11 @@ function shallowEqualValues(
 function isoToLocal(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  // `datetime-local` expects `YYYY-MM-DDTHH:mm` in *local* time.
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function localToIso(local: string): string {
-  // `new Date("2026-05-10T14:30")` parses as local time in all evergreen
-  // browsers, which is what we want: the user typed wall-clock time.
   const d = new Date(local);
   return d.toISOString();
 }
@@ -490,15 +429,6 @@ function labelForStatus(s: Booking["status"]): string {
   }
 }
 
-/**
- * Try to tease field-level errors out of a server response. Today the
- * server wraps `z.ZodError#message` (a JSON string of issues) in
- * `{ error }`. We parse it back into an `issues`-shaped array and hand it
- * to `zodErrorToFieldMap`.
- *
- * Returns `null` if the error doesn't look field-shaped, so the caller
- * falls back to a root error message.
- */
 function extractFieldErrors(err: unknown): Record<string, string> | null {
   if (!(err instanceof ApiError)) return null;
   if (err.status !== 400) return null;
@@ -511,10 +441,10 @@ function extractFieldErrors(err: unknown): Record<string, string> | null {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return null;
 
-    // Hand-roll a ZodError from the shape to reuse our mapper.
     const issues = parsed
-      .filter((i): i is { path?: unknown[]; message?: string } =>
-        typeof i === "object" && i !== null,
+      .filter(
+        (i): i is { path?: unknown[]; message?: string } =>
+          typeof i === "object" && i !== null,
       )
       .map((i) => ({
         code: "custom" as const,

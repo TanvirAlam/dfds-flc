@@ -1,27 +1,8 @@
 import type { BookingStatus } from "@/lib/api/types";
 
-/**
- * Status badge.
- *
- * Design goals:
- *   - Distinct, scannable visual per status (icon + colour + label).
- *   - Colour is never load-bearing: every badge shows its label in text,
- *     and every badge has a shape-differentiated icon so colour-blind
- *     users can still distinguish variants at a glance.
- *   - Styles come from design tokens defined in `src/styles.css`
- *     (`--status-*-bg/fg/ring`). That is the one place to retheme. When
- *     NavAIgator becomes installable, swap those definitions for the
- *     library's semantic tokens.
- *
- * Contrast: see the contrast table in `src/styles.css`. All variants hit
- * WCAG AA (≥ 4.5:1) on both light and dark surfaces.
- */
-
 type Variant = {
   label: string;
-  /** CSS var root for this variant (e.g. `--status-pending-*`). */
   token: string;
-  /** Shape-differentiated icon so colour isn't the only cue. */
   Icon: (props: { className?: string }) => React.JSX.Element;
 };
 
@@ -44,22 +25,14 @@ const VARIANTS: Record<BookingStatus, Variant> = {
 export function StatusBadge({ status }: { status: BookingStatus }) {
   const v = VARIANTS[status];
 
-  // Inline style so each badge pulls the right tokens without the explosion
-  // of a 5×3 class matrix. CSS variables remain the source of truth, which
-  // means `.dark` swaps just work.
   const style = {
     backgroundColor: `var(--status-${v.token}-bg)`,
     color: `var(--status-${v.token}-fg)`,
-    // Tailwind's `ring-1 ring-inset` reads ring colour from --tw-ring-color.
-    // Assigning it here keeps the visual language consistent with other
-    // ringed pills in the app.
     ["--tw-ring-color" as string]: `var(--status-${v.token}-ring)`,
   } as React.CSSProperties;
 
   return (
     <span
-      // role=status is overkill for an inline pill; we rely on the label
-      // text for AT users. Screen readers announce the label naturally.
       className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
       style={style}
     >
@@ -68,15 +41,6 @@ export function StatusBadge({ status }: { status: BookingStatus }) {
     </span>
   );
 }
-
-/* -------------------------------------------------------------------- */
-/* Icons                                                                */
-/*                                                                      */
-/* Inline, stroke-only, 24×24 viewBox, `currentColor`. That way they    */
-/* inherit the badge's foreground colour and work on any surface with   */
-/* no extra wiring. No icon library — keeps bundle size honest and      */
-/* avoids one more thing to audit.                                      */
-/* -------------------------------------------------------------------- */
 
 const svgProps = {
   viewBox: "0 0 24 24",
