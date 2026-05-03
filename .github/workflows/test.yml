@@ -30,6 +30,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Run the setup script and Vite build directly (bypassing the `prebuild`
+      # npm lifecycle hook) so the TanStack Router plugin generates
+      # `src/routeTree.gen.ts` BEFORE we run typecheck. The generated file is
+      # gitignored and does not exist on a fresh CI checkout.
+      - name: Setup DB and generate route tree
+        run: |
+          pnpm exec tsx scripts/setup.ts
+          pnpm exec vite build
+
       - name: Run type check
         run: pnpm typecheck
 
