@@ -1,0 +1,54 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Run the setup script and Vite build directly (bypassing the `prebuild`
+      # npm lifecycle hook) so the TanStack Router plugin generates
+      # `src/routeTree.gen.ts` BEFORE we run typecheck. The generated file is
+      # gitignored and does not exist on a fresh CI checkout.
+      - name: Setup DB and generate route tree
+        run: |
+          pnpm exec tsx scripts/setup.ts
+          pnpm exec vite build
+
+      - name: Run type check
+        run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test --ci --coverage
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
