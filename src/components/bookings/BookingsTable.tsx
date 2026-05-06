@@ -6,7 +6,7 @@ import {
   type BookingSortKey,
 } from "@/domain/bookings/sort";
 import { useTableSort } from "@/lib/hooks/useTableSort";
-import { SortableTh, Th } from "@/components/ui/Table";
+import { SortableTh, Th, Table } from "@/components/ui/Table";
 import { BookingRow } from "./BookingRow";
 
 /**
@@ -40,7 +40,7 @@ export function BookingsTable({
 
   return (
     <div className="relative max-h-[calc(100vh-18rem)] min-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full border-collapse text-sm">
+      <Table variant="default" size="md" className="min-w-full border-collapse text-sm">
         <caption className="sr-only">Freight bookings</caption>
         <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_theme(colors.slate.200)]">
           <tr>
@@ -107,7 +107,7 @@ export function BookingsTable({
             <BookingRow key={row.id} row={row} onActivate={onRowActivate} />
           ))}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

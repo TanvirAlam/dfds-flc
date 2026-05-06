@@ -1,18 +1,14 @@
-import { useId } from "react";
 import type { BookingFormValues } from "@/domain/bookings/form";
 import {
   ALL_BOOKING_STATUSES,
   statusLabel,
 } from "@/domain/bookings/status";
 import type { Customer, Vessel } from "@/domain/bookings/types";
-import {
-  DateTimeInput,
-  Field,
-  NumberInput,
-  SelectInput,
-  TextInput,
-} from "@/components/ui/Field";
+import { TextInput } from "@dfds-ui/navaigator";
+import { Select, SelectField, SelectTrigger, SelectContent, SelectItem } from "@dfds-ui/navaigator";
 import { Section } from "./Section";
+import { DateTimeInput } from "./DateTimeInput";
+import { NumberInput } from "./NumberInput";
 
 /**
  * Visual sections of the booking form.
@@ -38,192 +34,164 @@ export function IdentitySection({
   customers,
   vessels,
 }: FieldControls & { customers: Customer[]; vessels: Vessel[] }) {
-  const base = useId();
   return (
     <Section title="Identity" describedBy="Who the booking is for.">
-      <Field
+      <SelectField
         label="Customer"
-        htmlFor={`${base}-customerId`}
-        error={errors.customerId}
+        status={errors.customerId ? "error" : undefined}
+        errorMessage={errors.customerId}
         required
       >
-        <SelectInput
-          id={`${base}-customerId`}
-          value={values.customerId}
-          onChange={(e) => setField("customerId", e.target.value)}
-          aria-invalid={Boolean(errors.customerId)}
-          required
+        <Select
+          value={values.customerId || "__placeholder__"}
+          onValueChange={(val) => setField("customerId", val === "__placeholder__" ? "" : val)}
         >
-          <option value="">Select a customer…</option>
-          {sortedByName(customers).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
+          <SelectTrigger placeholder="Select a customer…" />
+          <SelectContent>
+            <SelectItem value="__placeholder__" disabled>
+              Select a customer…
+            </SelectItem>
+            {sortedByName(customers).map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SelectField>
 
-      <Field
+      <SelectField
         label="Vessel"
-        htmlFor={`${base}-vesselId`}
-        error={errors.vesselId}
+        status={errors.vesselId ? "error" : undefined}
+        errorMessage={errors.vesselId}
         required
       >
-        <SelectInput
-          id={`${base}-vesselId`}
-          value={values.vesselId}
-          onChange={(e) => setField("vesselId", e.target.value)}
-          aria-invalid={Boolean(errors.vesselId)}
-          required
+        <Select
+          value={values.vesselId || "__placeholder__"}
+          onValueChange={(val) => setField("vesselId", val === "__placeholder__" ? "" : val)}
         >
-          <option value="">Select a vessel…</option>
-          {sortedByName(vessels).map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
+          <SelectTrigger placeholder="Select a vessel…" />
+          <SelectContent>
+            <SelectItem value="__placeholder__" disabled>
+              Select a vessel…
+            </SelectItem>
+            {sortedByName(vessels).map((v) => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SelectField>
     </Section>
   );
 }
 
 export function LogisticsSection({ values, errors, setField }: FieldControls) {
-  const base = useId();
   return (
     <Section title="Logistics" describedBy="Where and when the cargo travels.">
       <div className="grid grid-cols-2 gap-3">
-        <Field
+        <TextInput
           label="Origin"
-          htmlFor={`${base}-origin`}
-          error={errors.origin}
+          value={values.origin}
+          onChange={(e: any) => setField("origin", e.target.value)}
+          status={errors.origin ? "error" : undefined}
+          errorMessage={errors.origin}
           required
-        >
-          <TextInput
-            id={`${base}-origin`}
-            value={values.origin}
-            onChange={(e) => setField("origin", e.target.value)}
-            aria-invalid={Boolean(errors.origin)}
-            autoComplete="off"
-          />
-        </Field>
-        <Field
+          autoComplete="off"
+        />
+        <TextInput
           label="Destination"
-          htmlFor={`${base}-destination`}
-          error={errors.destination}
+          value={values.destination}
+          onChange={(e: any) => setField("destination", e.target.value)}
+          status={errors.destination ? "error" : undefined}
+          errorMessage={errors.destination}
           required
-        >
-          <TextInput
-            id={`${base}-destination`}
-            value={values.destination}
-            onChange={(e) => setField("destination", e.target.value)}
-            aria-invalid={Boolean(errors.destination)}
-            autoComplete="off"
-          />
-        </Field>
+          autoComplete="off"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field
+        <DateTimeInput
           label="Departure"
-          htmlFor={`${base}-departureAt`}
-          error={errors.departureAt}
-          hint="Local time."
+          value={values.departureAt}
+          onChange={(e: any) => setField("departureAt", e.target.value)}
+          status={errors.departureAt ? "error" : undefined}
+          errorMessage={errors.departureAt}
+          assistiveText="Local time."
           required
-        >
-          <DateTimeInput
-            id={`${base}-departureAt`}
-            value={values.departureAt}
-            onChange={(e) => setField("departureAt", e.target.value)}
-            aria-invalid={Boolean(errors.departureAt)}
-          />
-        </Field>
-        <Field
+        />
+        <DateTimeInput
           label="Arrival"
-          htmlFor={`${base}-arrivalAt`}
-          error={errors.arrivalAt}
-          hint="Local time."
+          value={values.arrivalAt}
+          onChange={(e: any) => setField("arrivalAt", e.target.value)}
+          status={errors.arrivalAt ? "error" : undefined}
+          errorMessage={errors.arrivalAt}
+          assistiveText="Local time."
           required
-        >
-          <DateTimeInput
-            id={`${base}-arrivalAt`}
-            value={values.arrivalAt}
-            onChange={(e) => setField("arrivalAt", e.target.value)}
-            aria-invalid={Boolean(errors.arrivalAt)}
-          />
-        </Field>
+        />
       </div>
 
-      <Field
+      <SelectField
         label="Status"
-        htmlFor={`${base}-status`}
-        error={errors.status}
-        hint="Defaults to Pending for new bookings."
-        optional
+        status={errors.status ? "error" : undefined}
+        errorMessage={errors.status}
+        assistiveText="Defaults to Pending for new bookings."
       >
-        <SelectInput
-          id={`${base}-status`}
-          value={values.status}
-          onChange={(e) =>
-            setField("status", e.target.value as BookingFormValues["status"])
-          }
-          aria-invalid={Boolean(errors.status)}
+        <Select
+          value={values.status || "__placeholder__"}
+          onValueChange={(val: string) => setField("status", val === "__placeholder__" ? "pending" : val as BookingFormValues["status"])}
         >
-          {ALL_BOOKING_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {statusLabel(s)}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
+          <SelectTrigger placeholder="Select status…" />
+          <SelectContent>
+            <SelectItem value="__placeholder__" disabled>
+              Select status…
+            </SelectItem>
+            {ALL_BOOKING_STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {statusLabel(s)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SelectField>
     </Section>
   );
 }
 
 export function CargoSection({ values, errors, setField }: FieldControls) {
-  const base = useId();
   return (
     <Section title="Cargo" describedBy="What's being shipped.">
       <div className="grid grid-cols-[1fr_9rem] gap-3">
-        <Field
+        <TextInput
           label="Cargo type"
-          htmlFor={`${base}-cargoType`}
-          error={errors.cargoType}
-          hint="Pick a suggestion or enter a free-form description."
+          value={values.cargoType}
+          onChange={(e: any) => setField("cargoType", e.target.value)}
+          status={errors.cargoType ? "error" : undefined}
+          errorMessage={errors.cargoType}
+          assistiveText="Pick a suggestion or enter a free-form description."
           required
-        >
-          <TextInput
-            id={`${base}-cargoType`}
-            value={values.cargoType}
-            onChange={(e) => setField("cargoType", e.target.value)}
-            aria-invalid={Boolean(errors.cargoType)}
-            autoComplete="off"
-            list={`${base}-cargoType-suggestions`}
-          />
-          <datalist id={`${base}-cargoType-suggestions`}>
-            <option value="general" />
-            <option value="automotive" />
-            <option value="refrigerated" />
-            <option value="hazardous" />
-          </datalist>
-        </Field>
-        <Field
+          autoComplete="off"
+          list="cargoType-suggestions"
+        />
+        <datalist id="cargoType-suggestions">
+          <option value="general" />
+          <option value="automotive" />
+          <option value="refrigerated" />
+          <option value="hazardous" />
+        </datalist>
+        <NumberInput
           label="Weight"
-          htmlFor={`${base}-weightKg`}
-          error={errors.weightKg}
-          hint="Whole kilograms."
+          value={values.weightKg}
+          onChange={(e: any) => setField("weightKg", e.target.value)}
+          status={errors.weightKg ? "error" : undefined}
+          errorMessage={errors.weightKg}
+          assistiveText="Whole kilograms."
           required
-        >
-          <NumberInput
-            id={`${base}-weightKg`}
-            value={values.weightKg}
-            onChange={(e) => setField("weightKg", e.target.value)}
-            aria-invalid={Boolean(errors.weightKg)}
-            min={1}
-            step={1}
-            inputMode="numeric"
-          />
-        </Field>
+          min={1}
+          step={1}
+          inputMode="numeric"
+        />
       </div>
     </Section>
   );

@@ -35,12 +35,12 @@ export const BookingRow = memo(function BookingRow({
       aria-label={activatable ? `Open booking ${row.id}` : `Booking ${row.id}`}
       onClick={activatable ? () => onActivate?.(row) : undefined}
       onKeyDown={handleKeyDown}
-      className={
-        "group h-12 outline-none transition-colors " +
-        "hover:bg-slate-50 focus-visible:bg-sky-50 " +
-        "focus-visible:shadow-[inset_2px_0_0_0_theme(colors.sky.500)] " +
-        (activatable ? "cursor-pointer" : "")
-      }
+      className={`
+        group h-12 cursor-pointer select-none transition-colors
+        hover:bg-slate-50 focus-visible:bg-sky-50
+        focus-visible:shadow-[inset_2px_0_0_0_theme(colors.sky.500)]
+        ${activatable ? "cursor-pointer" : ""}
+      `}
     >
       <Td>
         <span className="font-mono text-xs text-slate-700" title={row.id}>

@@ -83,7 +83,7 @@ function DefaultFallback({
         <h1 className="text-base font-semibold">{ui.title}</h1>
         <p className="mt-1 text-rose-800/90">{ui.body}</p>
         <div className="mt-4">
-          <Button variant="danger" size="sm" onClick={onReset}>
+          <Button variant="secondary" size="sm" onClick={onReset}>
             Try again
           </Button>
         </div>

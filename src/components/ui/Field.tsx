@@ -61,7 +61,10 @@ const INPUT_BASE =
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input {...props} className={`${INPUT_BASE} ${props.className ?? ""}`} />
+    <input
+      {...props}
+      className={`${INPUT_BASE} ${props.className ?? ""}`}
+    />
   );
 }
 
