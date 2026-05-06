@@ -1,6 +1,5 @@
 @import "tailwindcss";
-/* NavAIgator stylesheet intentionally not imported; the package fails to
-   install without GitHub Packages auth. See BUGS.md. */
+@import "@dfds-ui/navaigator/styles.css";
 
 /*
  * Status design tokens.

@@ -10,7 +10,7 @@ import { BookingForm, type Submission } from "./BookingForm";
  * Drawer container for the create / edit flow.
  *
  * Responsibilities:
- *   - wrap the form in a right-side `<Drawer>`,
+ *   - wrap the form in a right-side `<Drawer>`, using NavAIgator Drawer
  *   - call the appropriate API method on submit,
  *   - push a success toast + surface the persisted record upward,
  *   - gate dismiss with a "discard unsaved changes?" confirm when dirty.

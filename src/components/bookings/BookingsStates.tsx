@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@dfds-ui/navaigator";
 import { toUserFacingMessage } from "@/lib/errors";
 
 const SKELETON_ROWS = 8;
@@ -15,47 +16,65 @@ export function BookingsLoading() {
         <caption className="sr-only">Loading freight bookings</caption>
         <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-[inset_0_-1px_0_0_theme(colors.slate.200)]">
           <tr>
-            <Th className="w-32">Ref</Th>
-            <Th className="w-56">Customer</Th>
-            <Th className="w-40">Vessel</Th>
-            <Th className="min-w-64">Route</Th>
-            <Th className="w-40">Cargo</Th>
-            <Th className="w-28 text-right">Weight</Th>
-            <Th className="w-32">Status</Th>
-            <Th className="w-44">ETD</Th>
-            <Th className="w-44">ETA</Th>
+            <th scope="col" className="w-32 px-3 py-2.5 align-middle">
+              Ref
+            </th>
+            <th scope="col" className="w-56 px-3 py-2.5 align-middle">
+              Customer
+            </th>
+            <th scope="col" className="w-40 px-3 py-2.5 align-middle">
+              Vessel
+            </th>
+            <th scope="col" className="min-w-64 px-3 py-2.5 align-middle">
+              Route
+            </th>
+            <th scope="col" className="w-40 px-3 py-2.5 align-middle">
+              Cargo
+            </th>
+            <th scope="col" className="w-28 px-3 py-2.5 align-middle text-right">
+              Weight
+            </th>
+            <th scope="col" className="w-32 px-3 py-2.5 align-middle">
+              Status
+            </th>
+            <th scope="col" className="w-44 px-3 py-2.5 align-middle">
+              ETD
+            </th>
+            <th scope="col" className="w-44 px-3 py-2.5 align-middle">
+              ETA
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
             <tr key={i} className="h-12">
-              <Cell>
-                <SkeletonBar className="w-16" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-40" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-28" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-48" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-24" />
-              </Cell>
-              <Cell className="text-right">
-                <SkeletonBar className="ml-auto w-16" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-20 rounded-full" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-28" />
-              </Cell>
-              <Cell>
-                <SkeletonBar className="w-28" />
-              </Cell>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-16 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-40 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-28 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-48 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-24 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle text-right">
+                <Skeleton className="ml-auto h-3 w-16 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-20 rounded-full" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-28 rounded" />
+              </td>
+              <td className="px-3 py-2.5 align-middle">
+                <Skeleton className="h-3 w-28 rounded" />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -88,9 +107,6 @@ export function BookingsError({
   error: unknown;
   onRetry: () => void;
 }) {
-  // Classify once; never render `error.message` directly. Exposing raw
-  // server strings to an ops user is a surprise waiting to happen, and
-  // leaks details that belong in the console (see `reportError`).
   const ui = toUserFacingMessage(error);
 
   return (
@@ -105,7 +121,7 @@ export function BookingsError({
         </div>
         {ui.canRetry ? (
           <Button
-            variant="danger"
+            variant="secondary"
             size="sm"
             onClick={onRetry}
             className="shrink-0"
@@ -115,40 +131,5 @@ export function BookingsError({
         ) : null}
       </div>
     </div>
-  );
-}
-
-function Th({
-  className = "",
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <th scope="col" className={`px-3 py-2.5 align-middle ${className}`}>
-      {children}
-    </th>
-  );
-}
-
-function Cell({
-  className = "",
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <td className={`px-3 py-2.5 align-middle ${className}`}>{children}</td>
-  );
-}
-
-function SkeletonBar({ className = "" }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`inline-block h-3 rounded bg-slate-200 motion-safe:animate-pulse ${className}`}
-    />
   );
 }

@@ -1,35 +1,33 @@
 import { memo } from "react";
+import { Badge } from "@dfds-ui/navaigator";
 import { statusPresenter } from "@/domain/bookings/status";
 import type { BookingStatus } from "@/domain/bookings/types";
-import {
-  CheckIcon,
-  ClockIcon,
-  PackageCheckIcon,
-  TruckIcon,
-  XCircleIcon,
-  type IconComponent,
-} from "@/components/ui/StatusIcons";
 
 /**
  * Status pill.
  *
+ * Uses NavAIgator Badge component with variant mapped from booking status.
  * - Label + icon + colour → never colour-alone; shape-differentiated for
  *   colour-blind users; text always readable by AT.
- * - Styles come from design tokens (`var(--status-*-{bg,fg,ring})`)
- *   defined in `src/styles.css`. One place to retheme.
- * - Labels + token names + sort order come from `statusPresenter` in
+ * - Styles come from NavAIgator design tokens.
+ * - Labels + sort order come from `statusPresenter` in
  *   `@/domain/bookings/status`, the single source of truth.
- *
- * Icons are mapped locally because they're a purely visual concern;
- * swapping icon sets shouldn't touch the domain layer.
  */
 
-const ICONS: Record<BookingStatus, IconComponent> = {
-  pending: ClockIcon,
-  confirmed: CheckIcon,
-  in_transit: TruckIcon,
-  delivered: PackageCheckIcon,
-  cancelled: XCircleIcon,
+const STATUS_VARIANT: Record<BookingStatus, "danger" | "warning" | "success" | "info" | "neutral" | "accent"> = {
+  pending: "warning",
+  confirmed: "success",
+  in_transit: "info",
+  delivered: "success",
+  cancelled: "danger",
+};
+
+const STATUS_EMPHASIS: Record<BookingStatus, "low" | "high"> = {
+  pending: "high",
+  confirmed: "high",
+  in_transit: "high",
+  delivered: "high",
+  cancelled: "high",
 };
 
 export const StatusBadge = memo(function StatusBadge({
@@ -37,22 +35,15 @@ export const StatusBadge = memo(function StatusBadge({
 }: {
   status: BookingStatus;
 }) {
-  const { label, token } = statusPresenter(status);
-  const Icon = ICONS[status];
-
-  const style = {
-    backgroundColor: `var(--status-${token}-bg)`,
-    color: `var(--status-${token}-fg)`,
-    ["--tw-ring-color" as string]: `var(--status-${token}-ring)`,
-  } as React.CSSProperties;
+  const { label } = statusPresenter(status);
 
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
-      style={style}
+    <Badge
+      variant={STATUS_VARIANT[status]}
+      emphasis={STATUS_EMPHASIS[status]}
+      size="sm"
     >
-      <Icon className="h-3.5 w-3.5" />
-      <span>{label}</span>
-    </span>
+      {label}
+    </Badge>
   );
 });

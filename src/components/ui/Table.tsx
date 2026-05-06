@@ -1,4 +1,5 @@
 import type { SortDir, SortState } from "@/lib/hooks/useTableSort";
+import { Table } from "@dfds-ui/navaigator";
 
 export function Th({
   children,
@@ -96,3 +97,5 @@ export function TruncatedText({
     </span>
   );
 }
+
+export { Table };

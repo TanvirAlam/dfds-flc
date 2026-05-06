@@ -2,7 +2,6 @@ import { type FormEvent, useMemo } from "react";
 import type { Booking, Customer, Vessel } from "@/domain/bookings/types";
 import type { FormMode, Submission } from "@/domain/bookings/form";
 import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
 import { useBookingForm } from "./useBookingForm";
 import {
   CargoSection,
@@ -65,12 +64,12 @@ export function BookingForm({
       <CargoSection values={values} errors={errors} setField={setField} />
 
       {errors._root ? (
-        <p
+        <div
           role="alert"
           className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900"
         >
           {errors._root}
-        </p>
+        </div>
       ) : null}
 
       <p className="sr-only" aria-live="polite">
@@ -85,18 +84,9 @@ export function BookingForm({
           type="submit"
           variant="primary"
           disabled={submitting || (mode === "edit" && !dirty)}
-          aria-busy={submitting}
+          loading={submitting}
         >
-          {submitting ? (
-            <span className="inline-flex items-center gap-2">
-              <Spinner size={14} />
-              Saving…
-            </span>
-          ) : mode === "create" ? (
-            "Create booking"
-          ) : (
-            "Save changes"
-          )}
+          {mode === "create" ? "Create booking" : "Save changes"}
         </Button>
       </div>
     </form>

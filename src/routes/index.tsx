@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { buttonStyles } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -16,10 +16,13 @@ function Home() {
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Link to="/bookings" className={buttonStyles("primary")}>
-          Open bookings
-        </Link>
-        <a href="/api/docs" className={buttonStyles("secondary")}>
+        <Button asChild variant="primary">
+          <Link to="/bookings">Open bookings</Link>
+        </Button>
+        <a
+          href="/api/docs"
+          className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-sky-500"
+        >
           API docs
         </a>
       </div>

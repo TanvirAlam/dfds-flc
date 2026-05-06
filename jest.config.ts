@@ -26,6 +26,8 @@ const config: Config = {
     "^@/(.*)$": "<rootDir>/src/$1",
     // Stylesheets aren't executable under jsdom; stub them out.
     "\\.css$": "<rootDir>/src/__tests__/__mocks__/style.ts",
+    // NavAIgator package - mock it for tests
+    "^@dfds-ui/navaigator$": "<rootDir>/src/__tests__/__mocks__/navaigator.ts",
   },
   transform: {
     "^.+\\.(t|j)sx?$": "<rootDir>/jest-swc-transform.cjs",

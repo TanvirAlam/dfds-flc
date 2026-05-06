@@ -1,6 +1,5 @@
 import type { AsyncStatus } from "@/lib/hooks/useBookings";
 import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
 
 export function BookingsHeader({
   status,
@@ -34,7 +33,7 @@ export function BookingsHeader({
             aria-live="polite"
             className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200"
           >
-            <Spinner size={12} />
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
             <span>Refreshing</span>
           </span>
         ) : null}
